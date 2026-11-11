@@ -1,0 +1,11 @@
+# 核心：LightRAG 本体（被二次开发的对象）
+lightrag-hku==1.5.7
+# LLM 调用（DeepSeek 的 OpenAI 兼容接口）
+openai==3.49.0
+# 本地 embedding / rerank（零费用、CPU 可跑）
+fastembed==0.9.1
+# 配置
+python-dotenv==1.2.4
+# PDF 解析（本项目只做文本层，扫描件需另接 OCR）
+pymupdf==2.1
+numpy==2.5.4

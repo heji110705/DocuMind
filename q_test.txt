@@ -1,0 +1,42 @@
+INFO: [] Loaded graph from C:\Users\23840\Desktop\shixijianli\projects\documind\rag_storage\noglean\graph_chunk_entity_relation.graphml with 138 nodes, 176 edges
+INFO:nano-vectordb:Load (138, 512) data
+INFO:nano-vectordb:Init {'embedding_dim': 512, 'metric': 'cosine', 'storage_file': 'C:\\Users\\23840\\Desktop\\shixijianli\\projects\\documind\\rag_storage\\noglean\\vdb_entities.json'} 138 data
+INFO:nano-vectordb:Load (176, 512) data
+INFO:nano-vectordb:Init {'embedding_dim': 512, 'metric': 'cosine', 'storage_file': 'C:\\Users\\23840\\Desktop\\shixijianli\\projects\\documind\\rag_storage\\noglean\\vdb_relationships.json'} 176 data
+INFO:nano-vectordb:Load (7, 512) data
+INFO:nano-vectordb:Init {'embedding_dim': 512, 'metric': 'cosine', 'storage_file': 'C:\\Users\\23840\\Desktop\\shixijianli\\projects\\documind\\rag_storage\\noglean\\vdb_chunks.json'} 7 data
+INFO: Role LLM Configuration (initialized):
+INFO:  - extract: None/None, host=None, max_async=4, timeout=240
+INFO:  - keyword: None/None, host=None, max_async=4, timeout=240
+INFO:  - query: None/None, host=None, max_async=4, timeout=240
+INFO:  - vlm: None/None, host=None, max_async=4, timeout=240
+INFO: [] Process 32272 KV load full_docs with 1 records
+INFO: [] Process 32272 KV load text_chunks with 7 records
+INFO: [] Process 32272 KV load full_entities with 1 records
+INFO: [] Process 32272 KV load full_relations with 1 records
+INFO: [] Process 32272 KV load entity_chunks with 138 records
+INFO: [] Process 32272 KV load relation_chunks with 176 records
+INFO: [] Process 32272 KV load llm_response_cache with 8 records
+INFO: [] Process 32272 doc status load doc_status with 1 records
+INFO: Embedding func: 8 new workers initialized (Timeouts: Func: 30s, Worker: 60s, Health Check: 75s)
+INFO: Query nodes: LangSmith (top_k:20, cosine:0.2)
+INFO: Local query: 20 entites, 24 relations
+INFO: Query edges: observability, LLM tooling (top_k:20, cosine:0.2)
+INFO: Global query: 25 entites, 20 relations
+INFO: Naive query: 6 chunks (chunk_top_k:6 cosine:0.2)
+INFO: Raw search results: 44 entities, 43 relations, 6 vector chunks
+INFO: After truncation: 44 entities, 43 relations
+INFO: Selecting 7 from 7 entity-related chunks by vector similarity
+INFO: Find no additional relations-related chunks from 43 relations
+INFO: Round-robin merged chunks: 13 -> 7 (deduplicated 6)
+INFO: Rerank func: 4 new workers initialized (Timeouts: Func: 180s, Worker: 360s, Health Check: 375s)
+INFO: Successfully reranked: 6 chunks from 7 original chunks
+INFO: Final context: 44 entities, 43 relations, 6 chunks
+INFO: Final chunks S+F/O: E9/1 E15/3 E5/2 E4/7 E9/4 E10/5
+INFO:httpx2:HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx2:HTTP Request: POST https://api.deepseek.com/chat/completions "HTTP/1.1 200 OK"
+======================================================================
+问： 为什么不用 LangSmith 做观测？
+答：不用 LangSmith 做观测，原因是它需要 Key、需要联网，且是黑盒；项目改为自建 trace 落 SQLite，不依赖外部服务、断网可用 [2]。
+[5861 ms | 2 次调用 | 12999 token | 引用 [2]]
+INFO: Successfully finalized 12 storages

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+rag_storage/
+data/tmp/
+*.log
+.DS_Store
+logs_*.txt
+data/tmp/

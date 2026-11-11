@@ -1,0 +1,2539 @@
+[
+  {
+    "config": "naive",
+    "n": 40,
+    "acc_fact": 63.3,
+    "acc_fact_raw": "19/30",
+    "refusal_acc": 100.0,
+    "refusal_raw": "10/10",
+    "overall": 72.5,
+    "overall_raw": "29/40",
+    "citation_rate": 100.0,
+    "p50_ms": 979,
+    "mean_chunks": 6,
+    "calls": 78,
+    "prompt_tokens": 409152,
+    "completion_tokens": 2633,
+    "cost": 0.4491,
+    "cost_per_q": 0.01123,
+    "rows": [
+      {
+        "id": "Q01",
+        "type": "fact",
+        "q": "规则模式下端到端 p50 延迟是多少毫秒？",
+        "answer": "规则模式下端到端 p50 延迟是 140 ms [5]。",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": true,
+        "ms": 1429,
+        "calls": 2,
+        "prompt_tokens": 10163,
+        "completion_tokens": 29,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q02",
+        "type": "fact",
+        "q": "规则模式下 p95 延迟是多少？",
+        "answer": "规则模式下 p95 延迟是 219 ms [4]。",
+        "refused": false,
+        "citations": [
+          4
+        ],
+        "ok": true,
+        "ms": 1344,
+        "calls": 1,
+        "prompt_tokens": 5113,
+        "completion_tokens": 13,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q03",
+        "type": "fact",
+        "q": "单次检索的 token 预算是多少？",
+        "answer": "单次检索的 token 预算为 2600，实测约 1.2k [5]。",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": true,
+        "ms": 608,
+        "calls": 2,
+        "prompt_tokens": 9973,
+        "completion_tokens": 38,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q04",
+        "type": "fact",
+        "q": "仓库体积有多大？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1329,
+        "calls": 2,
+        "prompt_tokens": 9609,
+        "completion_tokens": 31,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q05",
+        "type": "fact",
+        "q": "编排引擎用了多少条测试用例？",
+        "answer": "证据不足：文档中未提及编排引擎的测试用例数量。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 984,
+        "calls": 2,
+        "prompt_tokens": 9845,
+        "completion_tokens": 23,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q06",
+        "type": "fact",
+        "q": "SQL 守卫的攻击样例用例有多少条？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 924,
+        "calls": 2,
+        "prompt_tokens": 10123,
+        "completion_tokens": 23,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q07",
+        "type": "fact",
+        "q": "语义检索层的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 964,
+        "calls": 2,
+        "prompt_tokens": 9827,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q08",
+        "type": "fact",
+        "q": "Agent 层的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 872,
+        "calls": 2,
+        "prompt_tokens": 10186,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q09",
+        "type": "fact",
+        "q": "API 层打通了多少个路由的用例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 762,
+        "calls": 2,
+        "prompt_tokens": 10436,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q10",
+        "type": "fact",
+        "q": "数据 ETL 的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1086,
+        "calls": 2,
+        "prompt_tokens": 10413,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q11",
+        "type": "fact",
+        "q": "full 配置的 EX 是多少？",
+        "answer": "full 配置的 EX 是 50.0%（30/60）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 977,
+        "calls": 2,
+        "prompt_tokens": 10657,
+        "completion_tokens": 28,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q12",
+        "type": "fact",
+        "q": "no_schema 配置的 EX 是多少？",
+        "answer": "no_schema 配置的 EX 是 46.7%（28/60）[1]。\n\n依据：消融对比表中 no_schema（去掉相关性排序）的 EX 为 46.7%（28/60）[1]；结论部分也给出 no_schema 为 46.7% [1]。另需注意，重复性检验中该配置两次运行分别为 43.3% 与 46.7%，均值为 45.0% [5]。",
+        "refused": false,
+        "citations": [
+          1,
+          5
+        ],
+        "ok": true,
+        "ms": 1484,
+        "calls": 3,
+        "prompt_tokens": 15857,
+        "completion_tokens": 178,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q13",
+        "type": "fact",
+        "q": "single 配置的 EX 是多少？",
+        "answer": "single 配置的 EX 是 45.0%（27/60）[1]。在重复性检验中，single 配置两次运行的 EX 均为 45.0%，均值为 45.0%，极差 0.0pp [4]。",
+        "refused": false,
+        "citations": [
+          1,
+          4
+        ],
+        "ok": true,
+        "ms": 1077,
+        "calls": 1,
+        "prompt_tokens": 5141,
+        "completion_tokens": 55,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q14",
+        "type": "fact",
+        "q": "四组配置之间的 EX 极差是多少个百分点？",
+        "answer": "四组配置之间的 EX 极差是 5.8 个百分点 [1]。\n\n依据：四组配置的平均 EX 落在 45.0% ~ 50.8% 之间，极差 5.8 个百分点 [1]。另有一处单次运行结果中，最高 50.0%（full/no_critic）、最低 45.0%（single），极差 5.0 个百分点 [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 1171,
+        "calls": 3,
+        "prompt_tokens": 16382,
+        "completion_tokens": 214,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q15",
+        "type": "fact",
+        "q": "full 配置的覆盖一致是多少？",
+        "answer": "full 配置的覆盖一致为 56.7%（34/60）[2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 677,
+        "calls": 1,
+        "prompt_tokens": 5596,
+        "completion_tokens": 19,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q16",
+        "type": "fact",
+        "q": "full 配置的 p50 是多少毫秒？",
+        "answer": "full 配置的 p50 为 5535 ms [1]；另一份报告的单次运行表中 full 的 p50 为 5748 ms [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 627,
+        "calls": 2,
+        "prompt_tokens": 10786,
+        "completion_tokens": 128,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q17",
+        "type": "fact",
+        "q": "full 配置的模型调用次数是多少？",
+        "answer": "full 配置的模型调用次数是 178 次 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1038,
+        "calls": 2,
+        "prompt_tokens": 10716,
+        "completion_tokens": 52,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q18",
+        "type": "fact",
+        "q": "full 配置的单题成本是多少钱？",
+        "answer": "full 配置的单题成本是 ¥0.00523 [1]。\n\n依据：成本与调用量表显示，full（完整 6 Agent）配置的单题成本为 ¥0.00523，同表还列出其单题 token 为 4867、单题模型耗时 5594 ms [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1279,
+        "calls": 3,
+        "prompt_tokens": 15948,
+        "completion_tokens": 142,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q19",
+        "type": "fact",
+        "q": "本轮全部配置合计花费大约多少钱？",
+        "answer": "本轮全部配置合计花费约 **¥1.302** [1]。\n\n依据：报告注明该数字用于配置间横向比较，不作账单依据；单价取 DeepSeek-chat 公开价（输入 ¥1 / 百万 token，输出 ¥2 / 百万 token）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 778,
+        "calls": 1,
+        "prompt_tokens": 4867,
+        "completion_tokens": 61,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q20",
+        "type": "fact",
+        "q": "T1 单表聚合类型 full 配置的 EX 是多少？",
+        "answer": "T1 单表聚合类型在 full 配置下的 EX 是 90.0%（9/10）[2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 1150,
+        "calls": 2,
+        "prompt_tokens": 10527,
+        "completion_tokens": 53,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q21",
+        "type": "fact",
+        "q": "T6 口径陷阱类型 full 配置的 EX 是多少？",
+        "answer": "T6 口径陷阱类型在 full 配置下的 EX 是 10.0%（1/10）[2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 435,
+        "calls": 1,
+        "prompt_tokens": 5379,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q22",
+        "type": "fact",
+        "q": "重复性检验中同一配置的 EX 极差是多少？",
+        "answer": "同一配置重复运行的 EX 极差最大为 3.3 个百分点（43.3% ~ 46.7%，配置 no_schema）[4]。各配置极差明细：full 为 0.0pp、no_critic 为 1.7pp、no_schema 为 3.3pp、single 为 0.0pp [1]。",
+        "refused": false,
+        "citations": [
+          4,
+          1
+        ],
+        "ok": false,
+        "ms": 1136,
+        "calls": 2,
+        "prompt_tokens": 10509,
+        "completion_tokens": 110,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q23",
+        "type": "fact",
+        "q": "为什么没有用 LangGraph？",
+        "answer": "没有用 LangGraph 的原因有两点：版本 API 变动频繁，以及\"能调 API\"不等于\"懂编排\"；项目因此选择了自研状态图（约 270 行）[6]。若要更换，只需重写 `build_graph()` 的装配 [6]。\n\n补充说明：自研状态图的价值在于路由逻辑外移到图定义后，`full` / `no_critic` / `single` 三种策略只是三份装配代码，Agent 一行不改 [6]。",
+        "refused": false,
+        "citations": [
+          6
+        ],
+        "ok": true,
+        "ms": 1580,
+        "calls": 2,
+        "prompt_tokens": 11501,
+        "completion_tokens": 189,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q24",
+        "type": "fact",
+        "q": "为什么不用向量库做语义检索？",
+        "answer": "不用向量库做语义检索，主要原因是卡片数量少、BM25 已够用，且向量库的召回不可解释、演示环境可能装不上 [2]。\n\n依据如下：\n- 语义检索选型为“手写 BM25 + 别名词典”，理由是卡片不足 200 条，BM25 够用，且每条召回都有 `hit_reason` 可解释 [2]。\n- 明确“不用向量库”的原因包括：要下模型、召回不可解释、演示环境可能装不上；同时 `Retriever` 协议留了口子 [2]。\n- 检索实现要求自己实现 BM25（约 80 行，不引第三方），并返回每张卡片的 `hit_reason`，作为 trace 可读性的关键 [4]。",
+        "refused": false,
+        "citations": [
+          2,
+          4
+        ],
+        "ok": true,
+        "ms": 1613,
+        "calls": 2,
+        "prompt_tokens": 11439,
+        "completion_tokens": 275,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q25",
+        "type": "fact",
+        "q": "SQL 安全校验为什么选择 sqlglot？",
+        "answer": "选择 sqlglot 是因为正则表达式必然会被绕过，而 AST 是唯一可靠的判定方式 [5]。\n\n依据如下：\n- 正则会被注释、大小写、函数嵌套、Unicode 空白等方式绕过；AST 解析后做白名单判定才是可靠方式 [5]。\n- 没有选用 `sqlparse`，因为它只做分词、不做语义校验 [5]。\n- 具体实现上使用 `sqlglot.parse(sql, read=\"sqlite\")`，并用 `expression.find_all(...)` 遍历；同时要把 CTE 名字收集进\"允许的临时表名\"集合，否则会把 `WITH t AS (...) SELECT * FROM t` 误杀 [1]。",
+        "refused": false,
+        "citations": [
+          5,
+          1
+        ],
+        "ok": true,
+        "ms": 1277,
+        "calls": 3,
+        "prompt_tokens": 17031,
+        "completion_tokens": 324,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q26",
+        "type": "fact",
+        "q": "为什么不用 LangSmith 做观测？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 820,
+        "calls": 1,
+        "prompt_tokens": 5767,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q27",
+        "type": "fact",
+        "q": "手写 MCP Server 大约多少行代码？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1240,
+        "calls": 3,
+        "prompt_tokens": 16414,
+        "completion_tokens": 193,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q28",
+        "type": "fact",
+        "q": "自研状态图引擎大约多少行？",
+        "answer": "自研状态图引擎约 270 行 [1]。\n\n依据：文档在选型表中将编排方案列为“自研状态图（≈270 行）”[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1211,
+        "calls": 1,
+        "prompt_tokens": 5240,
+        "completion_tokens": 38,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q29",
+        "type": "fact",
+        "q": "数据量放大 100 倍时，DimIndex 现在最大支持多少个维度值？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 972,
+        "calls": 3,
+        "prompt_tokens": 16018,
+        "completion_tokens": 32,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q30",
+        "type": "fact",
+        "q": "Agent 层有几个纯函数节点？",
+        "answer": "Agent 层有 6 个纯函数节点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 922,
+        "calls": 1,
+        "prompt_tokens": 5657,
+        "completion_tokens": 14,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q31",
+        "type": "unanswerable",
+        "q": "这个项目的作者是谁？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 706,
+        "calls": 2,
+        "prompt_tokens": 9903,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q32",
+        "type": "unanswerable",
+        "q": "项目部署的公网域名是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 764,
+        "calls": 2,
+        "prompt_tokens": 10437,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q33",
+        "type": "unanswerable",
+        "q": "训练这套系统用了多少张 GPU？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 982,
+        "calls": 2,
+        "prompt_tokens": 10529,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q34",
+        "type": "unanswerable",
+        "q": "团队一共有多少名工程师？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 936,
+        "calls": 2,
+        "prompt_tokens": 9979,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q35",
+        "type": "unanswerable",
+        "q": "项目采用的开源许可证是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 671,
+        "calls": 2,
+        "prompt_tokens": 10731,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q36",
+        "type": "unanswerable",
+        "q": "支持哪些语言的 OCR 识别？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 801,
+        "calls": 2,
+        "prompt_tokens": 10760,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q37",
+        "type": "unanswerable",
+        "q": "数据库里一共有多少本书？",
+        "answer": "证据不足：文档中未提及相关内容。\n\n文档中虽有计数类示例（如“一共有多少本书”对应的 SQL 模板 `SELECT COUNT(*) AS 书籍数 FROM dim_book`）[3]，但未给出该数据库的实际书籍数量。",
+        "refused": true,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 1260,
+        "calls": 3,
+        "prompt_tokens": 15071,
+        "completion_tokens": 69,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q38",
+        "type": "unanswerable",
+        "q": "2026 年第三季度的营收是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1004,
+        "calls": 1,
+        "prompt_tokens": 5235,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q39",
+        "type": "unanswerable",
+        "q": "与竞品 DataPilot 相比有哪些优势？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 621,
+        "calls": 2,
+        "prompt_tokens": 9678,
+        "completion_tokens": 60,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q40",
+        "type": "unanswerable",
+        "q": "线上日均查询量是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 926,
+        "calls": 2,
+        "prompt_tokens": 9709,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      }
+    ]
+  },
+  {
+    "config": "mix",
+    "n": 40,
+    "acc_fact": 66.7,
+    "acc_fact_raw": "20/30",
+    "refusal_acc": 100.0,
+    "refusal_raw": "10/10",
+    "overall": 75.0,
+    "overall_raw": "30/40",
+    "citation_rate": 100.0,
+    "p50_ms": 1974,
+    "mean_chunks": 6,
+    "calls": 158,
+    "prompt_tokens": 462758,
+    "completion_tokens": 5375,
+    "cost": 0.5182,
+    "cost_per_q": 0.01296,
+    "rows": [
+      {
+        "id": "Q01",
+        "type": "fact",
+        "q": "规则模式下端到端 p50 延迟是多少毫秒？",
+        "answer": "规则模式下端到端 p50 延迟是 140 ms [5]。",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": true,
+        "ms": 1971,
+        "calls": 4,
+        "prompt_tokens": 11794,
+        "completion_tokens": 117,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q02",
+        "type": "fact",
+        "q": "规则模式下 p95 延迟是多少？",
+        "answer": "规则模式下 p95 延迟是 219 ms [4]。该数值受首次查询冷启动影响 [4]。",
+        "refused": false,
+        "citations": [
+          4
+        ],
+        "ok": true,
+        "ms": 1663,
+        "calls": 3,
+        "prompt_tokens": 6412,
+        "completion_tokens": 101,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q03",
+        "type": "fact",
+        "q": "单次检索的 token 预算是多少？",
+        "answer": "单次检索的 token 预算为 2600，实测约 1.2k [5]。",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": true,
+        "ms": 2068,
+        "calls": 5,
+        "prompt_tokens": 16283,
+        "completion_tokens": 105,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q04",
+        "type": "fact",
+        "q": "仓库体积有多大？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1664,
+        "calls": 3,
+        "prompt_tokens": 5978,
+        "completion_tokens": 67,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q05",
+        "type": "fact",
+        "q": "编排引擎用了多少条测试用例？",
+        "answer": "证据不足：文档中未提及编排引擎的测试用例数量。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 2474,
+        "calls": 5,
+        "prompt_tokens": 16449,
+        "completion_tokens": 121,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q06",
+        "type": "fact",
+        "q": "SQL 守卫的攻击样例用例有多少条？",
+        "answer": "SQL 守卫的攻击样例用例有 54 条 [6]。",
+        "refused": false,
+        "citations": [
+          6
+        ],
+        "ok": true,
+        "ms": 2377,
+        "calls": 3,
+        "prompt_tokens": 6367,
+        "completion_tokens": 85,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q07",
+        "type": "fact",
+        "q": "语义检索层的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 2130,
+        "calls": 4,
+        "prompt_tokens": 11479,
+        "completion_tokens": 86,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q08",
+        "type": "fact",
+        "q": "Agent 层的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1978,
+        "calls": 3,
+        "prompt_tokens": 6616,
+        "completion_tokens": 77,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q09",
+        "type": "fact",
+        "q": "API 层打通了多少个路由的用例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1390,
+        "calls": 4,
+        "prompt_tokens": 11273,
+        "completion_tokens": 85,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q10",
+        "type": "fact",
+        "q": "数据 ETL 的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1750,
+        "calls": 4,
+        "prompt_tokens": 11710,
+        "completion_tokens": 85,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q11",
+        "type": "fact",
+        "q": "full 配置的 EX 是多少？",
+        "answer": "full 配置的 EX 是 50.0%（30/60）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 2308,
+        "calls": 4,
+        "prompt_tokens": 11951,
+        "completion_tokens": 82,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q12",
+        "type": "fact",
+        "q": "no_schema 配置的 EX 是多少？",
+        "answer": "no_schema 配置的 EX 为 46.7%（28/60）[1]。\n\n依据：消融对比表中 no_schema（去掉相关性排序）的 EX 为 46.7%（28/60）[1]；结论部分也给出 no_schema 为 46.7%[1]。另需注意，重复性检验中该配置两次运行分别为 43.3% 与 46.7%，均值为 45.0%[5]。",
+        "refused": false,
+        "citations": [
+          1,
+          5
+        ],
+        "ok": true,
+        "ms": 2238,
+        "calls": 4,
+        "prompt_tokens": 12132,
+        "completion_tokens": 177,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q13",
+        "type": "fact",
+        "q": "single 配置的 EX 是多少？",
+        "answer": "single 配置的 EX 为 45.0%（27/60）[1]。在重复性检验中，single 配置两次运行的 EX 均为 45.0%，均值为 45.0%，极差 0.0pp [4]。",
+        "refused": false,
+        "citations": [
+          1,
+          4
+        ],
+        "ok": true,
+        "ms": 2488,
+        "calls": 5,
+        "prompt_tokens": 17345,
+        "completion_tokens": 270,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q14",
+        "type": "fact",
+        "q": "四组配置之间的 EX 极差是多少个百分点？",
+        "answer": "四组配置之间的 EX 极差为 5.8 个百分点 [1]。\n\n依据：四组配置的平均 EX 落在 45.0% ~ 50.8% 之间，极差 5.8 个百分点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1814,
+        "calls": 3,
+        "prompt_tokens": 6723,
+        "completion_tokens": 111,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q15",
+        "type": "fact",
+        "q": "full 配置的覆盖一致是多少？",
+        "answer": "full 配置的覆盖一致为 56.7%（34/60）[2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 1783,
+        "calls": 4,
+        "prompt_tokens": 12032,
+        "completion_tokens": 124,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q16",
+        "type": "fact",
+        "q": "full 配置的 p50 是多少毫秒？",
+        "answer": "full 配置的 p50 为 5535 ms [1]；另一处报告给出 5748 ms [2]。两处数值不一致，均来自各自文档的记载。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 1871,
+        "calls": 4,
+        "prompt_tokens": 12250,
+        "completion_tokens": 108,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q17",
+        "type": "fact",
+        "q": "full 配置的模型调用次数是多少？",
+        "answer": "full 配置的模型调用次数是 178 次 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1494,
+        "calls": 4,
+        "prompt_tokens": 12010,
+        "completion_tokens": 114,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q18",
+        "type": "fact",
+        "q": "full 配置的单题成本是多少钱？",
+        "answer": "full 配置的单题成本是 ¥0.00523 [1]。\n\n依据：成本与调用量表显示，full（完整 6 Agent）配置的单题成本为 ¥0.00523，同表还列出其单题 token 为 4867、单题模型耗时 5594 ms [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1681,
+        "calls": 4,
+        "prompt_tokens": 12375,
+        "completion_tokens": 141,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q19",
+        "type": "fact",
+        "q": "本轮全部配置合计花费大约多少钱？",
+        "answer": "本轮全部配置合计花费约 **¥1.302** [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 2317,
+        "calls": 4,
+        "prompt_tokens": 11891,
+        "completion_tokens": 143,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q20",
+        "type": "fact",
+        "q": "T1 单表聚合类型 full 配置的 EX 是多少？",
+        "answer": "T1 单表聚合类型在 full 配置下的 EX 是 90.0%（9/10）[2][5]。\n\n依据：分类型 EX 表中，full 配置的 T1 单表聚合为 90.0%（9/10）[2]；重复性检验的分类型 EX（各次均值）表中，full 配置的 T1 同样为 90.0% [5]。",
+        "refused": false,
+        "citations": [
+          2,
+          5
+        ],
+        "ok": true,
+        "ms": 2184,
+        "calls": 4,
+        "prompt_tokens": 11315,
+        "completion_tokens": 168,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q21",
+        "type": "fact",
+        "q": "T6 口径陷阱类型 full 配置的 EX 是多少？",
+        "answer": "T6 口径陷阱类型在 full 配置下的 EX 是 10.0%（1/10）[2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 2317,
+        "calls": 4,
+        "prompt_tokens": 11831,
+        "completion_tokens": 189,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q22",
+        "type": "fact",
+        "q": "重复性检验中同一配置的 EX 极差是多少？",
+        "answer": "同一配置重复运行的 EX 极差最大为 3.3 个百分点（43.3% ~ 46.7%，配置 no_schema）[4]。四组配置的平均 EX 落在 45.0% ~ 50.8% 之间，极差 5.8 个百分点[4]。组间极差大于重复波动，差异具备进一步验证的价值，但每配置仅 2 次运行，不能作为显著性结论；如需下判断应扩到每配置 ≥5 次[1][4]。",
+        "refused": false,
+        "citations": [
+          4,
+          1
+        ],
+        "ok": false,
+        "ms": 2220,
+        "calls": 4,
+        "prompt_tokens": 12044,
+        "completion_tokens": 211,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q23",
+        "type": "fact",
+        "q": "为什么没有用 LangGraph？",
+        "answer": "没有用 LangGraph 的原因有两点：版本 API 变动频繁，以及\"能调 API\"不等于\"懂编排\"；项目选择自研状态图（约 270 行），若要更换框架，只需重写 `build_graph()` 的装配 [6]。",
+        "refused": false,
+        "citations": [
+          6
+        ],
+        "ok": true,
+        "ms": 2360,
+        "calls": 4,
+        "prompt_tokens": 12793,
+        "completion_tokens": 228,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q24",
+        "type": "fact",
+        "q": "为什么不用向量库做语义检索？",
+        "answer": "结论：因为卡片数量不足 200 条，手写 BM25 已经够用，而且每条召回都能给出 `hit_reason` 做解释；向量库需要下载模型、召回不可解释、演示环境可能装不上，所以没有采用，但 `Retriever` 协议留了口子。[2]\n\n依据：文档在选型表中把语义检索的决策记为“手写 BM25 + 别名词典”，理由正是上述三点，并注明“不用向量库：要下模型、召回不可解释、演示环境可能装不上；`Retriever` 协议留了口子”。[2] 另外，检索实现要求自己实现 BM25（约 80 行、不引第三方），且返回的每个卡片必须填 `hit_reason`（如 `\"name_exact\"` / `\"alias:评分人数\"` / `\"bm25:0.83\"` / `\"join:fact_rating\"`），这是 trace 可读性的关键。[4]",
+        "refused": false,
+        "citations": [
+          2,
+          4
+        ],
+        "ok": true,
+        "ms": 2970,
+        "calls": 4,
+        "prompt_tokens": 12761,
+        "completion_tokens": 330,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q25",
+        "type": "fact",
+        "q": "SQL 安全校验为什么选择 sqlglot？",
+        "answer": "选择 sqlglot 是因为它基于 AST 做语义校验，比正则或仅分词的工具更可靠 [5]。\n\n依据如下：\n- 项目对 SQL 安全采用“sqlglot 解析 AST 后白名单判定”的方案 [5]。\n- 理由是不用正则黑名单，因为正则必被绕过（注释/大小写/函数嵌套/Unicode 空白）；AST 是唯一可靠方式 [5]。\n- 同时明确不用 `sqlparse`，因为它只分词，不做语义校验 [5]。\n\n补充实现细节：解析时使用 `sqlglot.parse(sql, read=\"sqlite\")`，并用 `expression.find_all(...)` 遍历；CTE 名字要收集进“允许的临时表名”集合，否则会把 `WITH t AS (...) SELECT * FROM t` 误杀 [1]。",
+        "refused": false,
+        "citations": [
+          5,
+          1
+        ],
+        "ok": true,
+        "ms": 2784,
+        "calls": 5,
+        "prompt_tokens": 18356,
+        "completion_tokens": 458,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q26",
+        "type": "fact",
+        "q": "为什么不用 LangSmith 做观测？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1890,
+        "calls": 3,
+        "prompt_tokens": 7062,
+        "completion_tokens": 66,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q27",
+        "type": "fact",
+        "q": "手写 MCP Server 大约多少行代码？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 1760,
+        "calls": 4,
+        "prompt_tokens": 12472,
+        "completion_tokens": 254,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q28",
+        "type": "fact",
+        "q": "自研状态图引擎大约多少行？",
+        "answer": "自研状态图引擎约 270 行 [1]。\n\n依据：文档在选型表中将“编排”一项的选型写为“自研状态图（≈270 行）” [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 1962,
+        "calls": 4,
+        "prompt_tokens": 11747,
+        "completion_tokens": 121,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q29",
+        "type": "fact",
+        "q": "数据量放大 100 倍时，DimIndex 现在最大支持多少个维度值？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 2274,
+        "calls": 4,
+        "prompt_tokens": 11696,
+        "completion_tokens": 123,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q30",
+        "type": "fact",
+        "q": "Agent 层有几个纯函数节点？",
+        "answer": "Agent 层有 6 个纯函数节点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 2172,
+        "calls": 4,
+        "prompt_tokens": 12113,
+        "completion_tokens": 93,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q31",
+        "type": "unanswerable",
+        "q": "这个项目的作者是谁？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1956,
+        "calls": 5,
+        "prompt_tokens": 17384,
+        "completion_tokens": 87,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q32",
+        "type": "unanswerable",
+        "q": "项目部署的公网域名是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1665,
+        "calls": 3,
+        "prompt_tokens": 6976,
+        "completion_tokens": 64,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q33",
+        "type": "unanswerable",
+        "q": "训练这套系统用了多少张 GPU？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 2460,
+        "calls": 5,
+        "prompt_tokens": 16022,
+        "completion_tokens": 84,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q34",
+        "type": "unanswerable",
+        "q": "团队一共有多少名工程师？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 2014,
+        "calls": 3,
+        "prompt_tokens": 6428,
+        "completion_tokens": 66,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q35",
+        "type": "unanswerable",
+        "q": "项目采用的开源许可证是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1423,
+        "calls": 4,
+        "prompt_tokens": 11730,
+        "completion_tokens": 73,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q36",
+        "type": "unanswerable",
+        "q": "支持哪些语言的 OCR 识别？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1665,
+        "calls": 4,
+        "prompt_tokens": 12052,
+        "completion_tokens": 73,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q37",
+        "type": "unanswerable",
+        "q": "数据库里一共有多少本书？",
+        "answer": "证据不足：文档中未提及相关内容。\n\n补充说明：现有证据只给出了“书籍数”这一指标的**定义与模板写法**（`COUNT(dim_book.book_id)`，见 [3]），以及示例问法“一共有多少本书”对应的 SQL 模板（[3]），但**没有任何文档记录该查询的实际执行结果或具体数值**，因此无法回答“一共有多少本书”的具体数量。",
+        "refused": true,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 2435,
+        "calls": 5,
+        "prompt_tokens": 16365,
+        "completion_tokens": 175,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q38",
+        "type": "unanswerable",
+        "q": "2026 年第三季度的营收是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1815,
+        "calls": 3,
+        "prompt_tokens": 6529,
+        "completion_tokens": 79,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q39",
+        "type": "unanswerable",
+        "q": "与竞品 DataPilot 相比有哪些优势？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1969,
+        "calls": 5,
+        "prompt_tokens": 15845,
+        "completion_tokens": 165,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q40",
+        "type": "unanswerable",
+        "q": "线上日均查询量是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 1486,
+        "calls": 3,
+        "prompt_tokens": 6167,
+        "completion_tokens": 69,
+        "n_chunks": 6
+      }
+    ]
+  },
+  {
+    "config": "mix_rr",
+    "n": 40,
+    "acc_fact": 66.7,
+    "acc_fact_raw": "20/30",
+    "refusal_acc": 100.0,
+    "refusal_raw": "10/10",
+    "overall": 75.0,
+    "overall_raw": "30/40",
+    "citation_rate": 100.0,
+    "p50_ms": 10718,
+    "mean_chunks": 6,
+    "calls": 77,
+    "prompt_tokens": 419391,
+    "completion_tokens": 2896,
+    "cost": 0.4612,
+    "cost_per_q": 0.01153,
+    "rows": [
+      {
+        "id": "Q01",
+        "type": "fact",
+        "q": "规则模式下端到端 p50 延迟是多少毫秒？",
+        "answer": "证据不足：文档中未提及相关内容。\n\n依据：现有证据只给出了 api / 真实模型模式下的延迟数据（如 full 配置 p50 为 5535 ms [1]、5748 ms [5]），未涉及“规则模式”的端到端 p50 延迟 [1][5]。",
+        "refused": true,
+        "citations": [
+          1,
+          5
+        ],
+        "ok": false,
+        "ms": 11871,
+        "calls": 2,
+        "prompt_tokens": 10148,
+        "completion_tokens": 147,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q02",
+        "type": "fact",
+        "q": "规则模式下 p95 延迟是多少？",
+        "answer": "证据不足：文档中未提及相关内容。\n\n依据：证据中出现的 p95 数据均属于 api 模式（如 full 6657 ms、no_critic 6243 ms、no_schema 6861 ms、single 6631 ms）[4]，运行元信息也标明模式为 api [2]；证据未涉及“规则模式”的 p95 延迟。",
+        "refused": true,
+        "citations": [
+          4,
+          2
+        ],
+        "ok": false,
+        "ms": 11760,
+        "calls": 1,
+        "prompt_tokens": 5020,
+        "completion_tokens": 81,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q03",
+        "type": "fact",
+        "q": "单次检索的 token 预算是多少？",
+        "answer": "单次检索的 token 预算为 2600 [2]。\n\n依据：文档在性能与容量表中列出“单次检索 token ≈1.2k”，并注明“预算 2600，裁剪策略先保表卡片” [2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 11690,
+        "calls": 3,
+        "prompt_tokens": 16181,
+        "completion_tokens": 127,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q04",
+        "type": "fact",
+        "q": "仓库体积有多大？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 11461,
+        "calls": 1,
+        "prompt_tokens": 5655,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q05",
+        "type": "fact",
+        "q": "编排引擎用了多少条测试用例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 12240,
+        "calls": 3,
+        "prompt_tokens": 16799,
+        "completion_tokens": 70,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q06",
+        "type": "fact",
+        "q": "SQL 守卫的攻击样例用例有多少条？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 11995,
+        "calls": 1,
+        "prompt_tokens": 5672,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q07",
+        "type": "fact",
+        "q": "语义检索层的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 10673,
+        "calls": 3,
+        "prompt_tokens": 16198,
+        "completion_tokens": 31,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q08",
+        "type": "fact",
+        "q": "Agent 层的测试用例数是多少？",
+        "answer": "Agent 层的测试用例数是 31 个 [4]。",
+        "refused": false,
+        "citations": [
+          4
+        ],
+        "ok": true,
+        "ms": 9756,
+        "calls": 1,
+        "prompt_tokens": 5033,
+        "completion_tokens": 13,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q09",
+        "type": "fact",
+        "q": "API 层打通了多少个路由的用例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 10517,
+        "calls": 2,
+        "prompt_tokens": 10884,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q10",
+        "type": "fact",
+        "q": "数据 ETL 的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 10709,
+        "calls": 2,
+        "prompt_tokens": 10916,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q11",
+        "type": "fact",
+        "q": "full 配置的 EX 是多少？",
+        "answer": "full 配置的 EX 是 50.0%（30/60）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 10640,
+        "calls": 2,
+        "prompt_tokens": 10824,
+        "completion_tokens": 28,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q12",
+        "type": "fact",
+        "q": "no_schema 配置的 EX 是多少？",
+        "answer": "no_schema 配置的 EX 为 46.7%（28/60）[1]。\n\n依据：消融对比表中 no_schema（去掉相关性排序）的 EX 为 46.7%（28/60）[1]；分类型 EX 表中该配置合计同样为 46.7%（28/60）[4]。另需注意，重复性检验中该配置两次运行的 EX 分别为 43.3% 和 46.7%，均值 45.0%[3]。",
+        "refused": false,
+        "citations": [
+          1,
+          4,
+          3
+        ],
+        "ok": true,
+        "ms": 10978,
+        "calls": 2,
+        "prompt_tokens": 10837,
+        "completion_tokens": 129,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q13",
+        "type": "fact",
+        "q": "single 配置的 EX 是多少？",
+        "answer": "single 配置的 EX 是 45.0%（27/60）[1][5]。\n\n依据：消融对比表中 single（单链路、无重试、无 Critic）的 EX 为 45.0%（27/60）[1]；分类型 EX 表中 single 合计同样为 45.0%（27/60）[5]。此外，重复性检验中 single 两次运行的 EX 均为 45.0%，均值 45.0%[3]。",
+        "refused": false,
+        "citations": [
+          1,
+          5,
+          3
+        ],
+        "ok": true,
+        "ms": 9274,
+        "calls": 2,
+        "prompt_tokens": 10712,
+        "completion_tokens": 216,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q14",
+        "type": "fact",
+        "q": "四组配置之间的 EX 极差是多少个百分点？",
+        "answer": "四组配置之间的 EX 极差是 5.0 个百分点（最高 50.0%，最低 45.0%）[1]。另有重复性检验文档给出四组配置平均 EX 落在 45.0%~50.8% 之间、极差 5.8 个百分点[4]。",
+        "refused": false,
+        "citations": [
+          1,
+          4
+        ],
+        "ok": true,
+        "ms": 8995,
+        "calls": 2,
+        "prompt_tokens": 10658,
+        "completion_tokens": 173,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q15",
+        "type": "fact",
+        "q": "full 配置的覆盖一致是多少？",
+        "answer": "full 配置的覆盖一致是 56.7%（34/60）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 9467,
+        "calls": 2,
+        "prompt_tokens": 10714,
+        "completion_tokens": 86,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q16",
+        "type": "fact",
+        "q": "full 配置的 p50 是多少毫秒？",
+        "answer": "full 配置的 p50 为 5535 ms [1]；另一份评测报告表中记为 5748 ms [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 9139,
+        "calls": 2,
+        "prompt_tokens": 10781,
+        "completion_tokens": 48,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q17",
+        "type": "fact",
+        "q": "full 配置的模型调用次数是多少？",
+        "answer": "full 配置的模型调用次数是 178 次 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11223,
+        "calls": 2,
+        "prompt_tokens": 10851,
+        "completion_tokens": 44,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q18",
+        "type": "fact",
+        "q": "full 配置的单题成本是多少钱？",
+        "answer": "full 配置的单题成本是 ¥0.00523 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11080,
+        "calls": 2,
+        "prompt_tokens": 10714,
+        "completion_tokens": 30,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q19",
+        "type": "fact",
+        "q": "本轮全部配置合计花费大约多少钱？",
+        "answer": "本轮全部配置合计花费约 **¥1.302** [1]。\n\n依据：该数字来自成本与调用量章节的说明，单价取 DeepSeek-chat 公开价（输入 ¥1 / 百万 token，输出 ¥2 / 百万 token），并注明该数字用于横向比较配置之间，不作账单依据 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11794,
+        "calls": 2,
+        "prompt_tokens": 10641,
+        "completion_tokens": 86,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q20",
+        "type": "fact",
+        "q": "T1 单表聚合类型 full 配置的 EX 是多少？",
+        "answer": "T1 单表聚合类型在 full 配置下的 EX 是 90.0% [3]。\n\n依据：分类型 EX 表显示，full（6 Agent 全开）配置下 T1 为 90.0% [3]。",
+        "refused": false,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 11834,
+        "calls": 2,
+        "prompt_tokens": 10959,
+        "completion_tokens": 125,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q21",
+        "type": "fact",
+        "q": "T6 口径陷阱类型 full 配置的 EX 是多少？",
+        "answer": "T6 口径陷阱类型在 full 配置下的 EX 为 10.0%（1/10）[5]。",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": true,
+        "ms": 10728,
+        "calls": 2,
+        "prompt_tokens": 11183,
+        "completion_tokens": 80,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q22",
+        "type": "fact",
+        "q": "重复性检验中同一配置的 EX 极差是多少？",
+        "answer": "同一配置重复运行的 EX 极差最大为 3.3 个百分点（43.3% ~ 46.7%，配置 no_schema）[4]。逐配置来看：full 为 0.0pp，no_critic 为 1.7pp，no_schema 为 3.3pp，single 为 0.0pp [2]。",
+        "refused": false,
+        "citations": [
+          4,
+          2
+        ],
+        "ok": false,
+        "ms": 10342,
+        "calls": 2,
+        "prompt_tokens": 10937,
+        "completion_tokens": 107,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q23",
+        "type": "fact",
+        "q": "为什么没有用 LangGraph？",
+        "answer": "没有选用 LangGraph，是因为其版本 API 变动频繁，且“能调 API”不等于“懂编排”；项目改为自研状态图（约 270 行），以保证零版本漂移、节点为纯函数，换框架时只需重写 `build_graph()` 的装配 [4]。",
+        "refused": false,
+        "citations": [
+          4
+        ],
+        "ok": true,
+        "ms": 9112,
+        "calls": 2,
+        "prompt_tokens": 11097,
+        "completion_tokens": 145,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q24",
+        "type": "fact",
+        "q": "为什么不用向量库做语义检索？",
+        "answer": "不用向量库，是因为卡片数量少、BM25 已够用，且向量库在可解释性和演示环境上有明显代价 [1]。\n\n依据如下：\n- 语义检索选择的是“手写 BM25 + 别名词典”，理由是卡片不足 200 条，BM25 够用，且每条召回都有 `hit_reason` 可解释 [1]。\n- 没有选择向量库的原因包括：要下模型、召回不可解释、演示环境可能装不上；同时 `Retriever` 协议留了口子 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 9142,
+        "calls": 2,
+        "prompt_tokens": 11004,
+        "completion_tokens": 182,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q25",
+        "type": "fact",
+        "q": "SQL 安全校验为什么选择 sqlglot？",
+        "answer": "选择 sqlglot 是因为正则表达式必然会被绕过（注释、大小写、函数嵌套、Unicode 空白等），而 AST 解析是唯一可靠的判定方式 [4]。具体实现上，用 `sqlglot.parse(sql, read=\"sqlite\")` 解析，再用 `expression.find_all(...)` 遍历 AST 做白名单判定 [1]；同时需要把 CTE 名字收集进\"允许的临时表名\"集合，否则会把 `WITH t AS (...) SELECT * FROM t` 误杀 [1]。文档也明确排除了正则黑名单和 `sqlparse`（后者只分词、不做语义校验）[4]。",
+        "refused": false,
+        "citations": [
+          4,
+          1
+        ],
+        "ok": true,
+        "ms": 10601,
+        "calls": 2,
+        "prompt_tokens": 11269,
+        "completion_tokens": 257,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q26",
+        "type": "fact",
+        "q": "为什么不用 LangSmith 做观测？",
+        "answer": "没有采用 LangSmith 做观测，是因为它需要 Key、需要联网，且是黑盒；项目改为自建 trace 落 SQLite，不依赖外部服务、断网可用，也能讲清 span 埋点原理 [6]。",
+        "refused": false,
+        "citations": [
+          6
+        ],
+        "ok": true,
+        "ms": 10394,
+        "calls": 2,
+        "prompt_tokens": 11276,
+        "completion_tokens": 190,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q27",
+        "type": "fact",
+        "q": "手写 MCP Server 大约多少行代码？",
+        "answer": "手写 MCP Server 约 200 行代码 [1]。\n\n依据：文档在“Agent 接入”选型中说明，手写 MCP（JSON-RPC 2.0 over stdio）协议只有四个方法，自己实现约 200 行，零新增依赖 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 10048,
+        "calls": 2,
+        "prompt_tokens": 11107,
+        "completion_tokens": 115,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q28",
+        "type": "fact",
+        "q": "自研状态图引擎大约多少行？",
+        "answer": "自研状态图引擎约 270 行 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 10224,
+        "calls": 2,
+        "prompt_tokens": 11850,
+        "completion_tokens": 77,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q29",
+        "type": "fact",
+        "q": "数据量放大 100 倍时，DimIndex 现在最大支持多少个维度值？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 9295,
+        "calls": 3,
+        "prompt_tokens": 17015,
+        "completion_tokens": 36,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q30",
+        "type": "fact",
+        "q": "Agent 层有几个纯函数节点？",
+        "answer": "Agent 层有 6 个纯函数节点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 8824,
+        "calls": 1,
+        "prompt_tokens": 5288,
+        "completion_tokens": 14,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q31",
+        "type": "unanswerable",
+        "q": "这个项目的作者是谁？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 8257,
+        "calls": 2,
+        "prompt_tokens": 11128,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q32",
+        "type": "unanswerable",
+        "q": "项目部署的公网域名是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 8009,
+        "calls": 2,
+        "prompt_tokens": 10985,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q33",
+        "type": "unanswerable",
+        "q": "训练这套系统用了多少张 GPU？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 12241,
+        "calls": 2,
+        "prompt_tokens": 10472,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q34",
+        "type": "unanswerable",
+        "q": "团队一共有多少名工程师？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 11826,
+        "calls": 1,
+        "prompt_tokens": 5121,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q35",
+        "type": "unanswerable",
+        "q": "项目采用的开源许可证是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 11085,
+        "calls": 2,
+        "prompt_tokens": 10648,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q36",
+        "type": "unanswerable",
+        "q": "支持哪些语言的 OCR 识别？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 11558,
+        "calls": 2,
+        "prompt_tokens": 10783,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q37",
+        "type": "unanswerable",
+        "q": "数据库里一共有多少本书？",
+        "answer": "证据不足：文档中未提及相关内容。\n\n现有证据只给出了示例题面「一共有多少本书」及其示例 SQL `SELECT COUNT(*) FROM dim_book` [1]，但没有提供该数据库的实际查询结果或书籍总数，因此无法回答具体数量。",
+        "refused": true,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11750,
+        "calls": 3,
+        "prompt_tokens": 16076,
+        "completion_tokens": 70,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q38",
+        "type": "unanswerable",
+        "q": "2026 年第三季度的营收是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 10862,
+        "calls": 1,
+        "prompt_tokens": 5386,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q39",
+        "type": "unanswerable",
+        "q": "与竞品 DataPilot 相比有哪些优势？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 12495,
+        "calls": 2,
+        "prompt_tokens": 11215,
+        "completion_tokens": 18,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q40",
+        "type": "unanswerable",
+        "q": "线上日均查询量是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 12198,
+        "calls": 1,
+        "prompt_tokens": 5354,
+        "completion_tokens": 9,
+        "n_chunks": 6
+      }
+    ]
+  },
+  {
+    "config": "full",
+    "n": 40,
+    "acc_fact": 63.3,
+    "acc_fact_raw": "19/30",
+    "refusal_acc": 90.0,
+    "refusal_raw": "9/10",
+    "overall": 70.0,
+    "overall_raw": "28/40",
+    "citation_rate": 100.0,
+    "p50_ms": 11095,
+    "mean_chunks": 6,
+    "calls": 125,
+    "prompt_tokens": 683671,
+    "completion_tokens": 5899,
+    "cost": 0.7568,
+    "cost_per_q": 0.01892,
+    "rows": [
+      {
+        "id": "Q01",
+        "type": "fact",
+        "q": "规则模式下端到端 p50 延迟是多少毫秒？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 11883,
+        "calls": 2,
+        "prompt_tokens": 10170,
+        "completion_tokens": 127,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q02",
+        "type": "fact",
+        "q": "规则模式下 p95 延迟是多少？",
+        "answer": "证据不足：文档中未提及相关内容。\n\n（说明：证据中出现的 p95 数值均属于 api 模式下的评测结果，例如 full 配置 p95 为 6657 ms [4]，但没有任何内容涉及“规则模式”的 p95 延迟。）",
+        "refused": true,
+        "citations": [
+          4
+        ],
+        "ok": false,
+        "ms": 13440,
+        "calls": 3,
+        "prompt_tokens": 15251,
+        "completion_tokens": 184,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q03",
+        "type": "fact",
+        "q": "单次检索的 token 预算是多少？",
+        "answer": "单次检索的 token 预算为 2600，实测单次检索 token 约为 1.2k，裁剪策略是优先保留表卡片 [2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 11724,
+        "calls": 3,
+        "prompt_tokens": 15919,
+        "completion_tokens": 125,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q04",
+        "type": "fact",
+        "q": "仓库体积有多大？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 10304,
+        "calls": 3,
+        "prompt_tokens": 16504,
+        "completion_tokens": 81,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q05",
+        "type": "fact",
+        "q": "编排引擎用了多少条测试用例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 11946,
+        "calls": 2,
+        "prompt_tokens": 11406,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q06",
+        "type": "fact",
+        "q": "SQL 守卫的攻击样例用例有多少条？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 12832,
+        "calls": 2,
+        "prompt_tokens": 11423,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q07",
+        "type": "fact",
+        "q": "语义检索层的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 10560,
+        "calls": 2,
+        "prompt_tokens": 11130,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q08",
+        "type": "fact",
+        "q": "Agent 层的测试用例数是多少？",
+        "answer": "Agent 层的测试用例数是 31 个 [1][4]。\n\n依据：文档中“可测试性是怎么设计的”表格列出，Agent 层的测试方式为“统计口径、中文数字、指标选择、回退路径、图变体”，用例数为 31 [4]；架构分层说明中也标注 Agent 层对应“统计口径、中文数字、指标选择、回退路径、图变体 | 31” [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          4
+        ],
+        "ok": true,
+        "ms": 10613,
+        "calls": 3,
+        "prompt_tokens": 15556,
+        "completion_tokens": 141,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q09",
+        "type": "fact",
+        "q": "API 层打通了多少个路由的用例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 10500,
+        "calls": 3,
+        "prompt_tokens": 15568,
+        "completion_tokens": 141,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q10",
+        "type": "fact",
+        "q": "数据 ETL 的测试用例数是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 11051,
+        "calls": 2,
+        "prompt_tokens": 10938,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q11",
+        "type": "fact",
+        "q": "full 配置的 EX 是多少？",
+        "answer": "full 配置的 EX 是 50.0%（30/60）[1][6]。",
+        "refused": false,
+        "citations": [
+          1,
+          6
+        ],
+        "ok": true,
+        "ms": 11281,
+        "calls": 3,
+        "prompt_tokens": 16263,
+        "completion_tokens": 97,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q12",
+        "type": "fact",
+        "q": "no_schema 配置的 EX 是多少？",
+        "answer": "no_schema 配置的 EX 是 46.7%（28/60）[1][4]。\n\n依据：评测报告消融对比表中，no_schema（去掉相关性排序）的 EX 为 46.7%（28/60）[1]；分类型 EX 表中该配置合计同样为 46.7%（28/60）[4]。此外，重复性检验中该配置两次运行分别为 43.3% 和 46.7%，均值为 45.0%[3]。",
+        "refused": false,
+        "citations": [
+          1,
+          4,
+          3
+        ],
+        "ok": true,
+        "ms": 11642,
+        "calls": 4,
+        "prompt_tokens": 21782,
+        "completion_tokens": 223,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q13",
+        "type": "fact",
+        "q": "single 配置的 EX 是多少？",
+        "answer": "single 配置的 EX 是 45.0%（27/60）[1]。\n\n依据：消融对比表中 single（单链路、无重试、无 Critic）的 EX 为 45.0%（27/60）[1]；重复性检验中 single 两次运行均为 45.0%，均值 45.0% [3]。",
+        "refused": false,
+        "citations": [
+          1,
+          3
+        ],
+        "ok": true,
+        "ms": 9264,
+        "calls": 4,
+        "prompt_tokens": 21537,
+        "completion_tokens": 285,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q14",
+        "type": "fact",
+        "q": "四组配置之间的 EX 极差是多少个百分点？",
+        "answer": "四组配置之间的 EX 极差是 5.0 个百分点（最高 50.0%，最低 45.0%）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 9243,
+        "calls": 4,
+        "prompt_tokens": 21480,
+        "completion_tokens": 255,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q15",
+        "type": "fact",
+        "q": "full 配置的覆盖一致是多少？",
+        "answer": "full 配置的覆盖一致是 56.7%（34/60）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 9408,
+        "calls": 4,
+        "prompt_tokens": 21587,
+        "completion_tokens": 191,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q16",
+        "type": "fact",
+        "q": "full 配置的 p50 是多少毫秒？",
+        "answer": "full 配置的 p50 为 5535 ms [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": false,
+        "ms": 8882,
+        "calls": 4,
+        "prompt_tokens": 21700,
+        "completion_tokens": 154,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q17",
+        "type": "fact",
+        "q": "full 配置的模型调用次数是多少？",
+        "answer": "full 配置的模型调用次数是 178 次 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11821,
+        "calls": 4,
+        "prompt_tokens": 21823,
+        "completion_tokens": 133,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q18",
+        "type": "fact",
+        "q": "full 配置的单题成本是多少钱？",
+        "answer": "full 配置的单题成本是 ¥0.00523 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11558,
+        "calls": 4,
+        "prompt_tokens": 21538,
+        "completion_tokens": 122,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q19",
+        "type": "fact",
+        "q": "本轮全部配置合计花费大约多少钱？",
+        "answer": "本轮全部配置合计花费约 **¥1.302** [1]。\n\n依据：报告“成本与调用量”一节注明，本轮全部配置合计花费约 ¥1.302 [1]；该数字用于横向比较配置之间，不作账单依据 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 13107,
+        "calls": 5,
+        "prompt_tokens": 27054,
+        "completion_tokens": 193,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q20",
+        "type": "fact",
+        "q": "T1 单表聚合类型 full 配置的 EX 是多少？",
+        "answer": "T1 单表聚合类型在 full 配置下的 EX 是 90.0% [3]。\n\n依据：分类型 EX 表中，full（6 Agent 全开）一行 T1 列取值为 90.0% [3]。",
+        "refused": false,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 12918,
+        "calls": 4,
+        "prompt_tokens": 22013,
+        "completion_tokens": 186,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q21",
+        "type": "fact",
+        "q": "T6 口径陷阱类型 full 配置的 EX 是多少？",
+        "answer": "T6 口径陷阱类型在 full 配置下的 EX 为 10.0%（1/10）[5]。\n\n依据：分类型 EX 表中，full 配置的 T6 口径陷阱一列为 10.0%（1/10），合计为 50.0%（30/60）[5]。",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": true,
+        "ms": 12153,
+        "calls": 4,
+        "prompt_tokens": 22275,
+        "completion_tokens": 248,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q22",
+        "type": "fact",
+        "q": "重复性检验中同一配置的 EX 极差是多少？",
+        "answer": "同一配置重复运行的 EX 极差最大为 3.3 个百分点（43.3% ~ 46.7%，配置 `no_schema`）[1][4]。逐配置看：full 为 0.0pp、no_critic 为 1.7pp、no_schema 为 3.3pp、single 为 0.0pp[2]。",
+        "refused": false,
+        "citations": [
+          1,
+          4,
+          2
+        ],
+        "ok": false,
+        "ms": 11659,
+        "calls": 4,
+        "prompt_tokens": 22018,
+        "completion_tokens": 279,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q23",
+        "type": "fact",
+        "q": "为什么没有用 LangGraph？",
+        "answer": "没有用 LangGraph 的原因是：版本 API 变动频繁，且“能调 API”不等于“懂编排” [4]。\n\n依据方面，项目在编排层选择了自研状态图（约 270 行），理由是能讲清状态合并、条件边、检查点的实现，零版本漂移，节点是纯函数，换框架只换装配 [4]。文档同时说明，若要换用 LangGraph，只需重写 `build_graph()` 的装配部分 [4]。",
+        "refused": false,
+        "citations": [
+          4
+        ],
+        "ok": true,
+        "ms": 9879,
+        "calls": 4,
+        "prompt_tokens": 22194,
+        "completion_tokens": 256,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q24",
+        "type": "fact",
+        "q": "为什么不用向量库做语义检索？",
+        "answer": "不用向量库做语义检索，主要出于三点考虑：需要下载模型、召回结果不可解释、演示环境可能装不上；同时通过 `Retriever` 协议保留了替换空间 [1]。\n\n具体依据：文档在语义检索选型中选择了“手写 BM25 + 别名词典”，理由是卡片不足 200 条，BM25 够用且每条召回都有 `hit_reason` 可解释；而没选向量库的原因正是“要下模型、召回不可解释、演示环境可能装不上”，并说明 `Retriever` 协议留了口子 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 10660,
+        "calls": 4,
+        "prompt_tokens": 22095,
+        "completion_tokens": 298,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q25",
+        "type": "fact",
+        "q": "SQL 安全校验为什么选择 sqlglot？",
+        "answer": "结论：选择 sqlglot 是因为它能解析出 AST 再做白名单判定，而正则方式必然会被绕过，AST 是唯一可靠的方式 [4]。\n\n依据：\n- 正则会被注释、大小写、函数嵌套、Unicode 空白等方式绕过，因此不采用正则黑名单 [4]。\n- 不使用 `sqlparse`，因为它只做分词、不做语义校验 [4]。\n- 实现上通过 `sqlglot.parse(sql, read=\"sqlite\")` 解析，并用 `expression.find_all(...)` 遍历 AST [1]。\n- 使用 AST 白名单判定时需注意：CTE 名字要收集进“允许的临时表名”集合，否则会把 `WITH t AS (...) SELECT * FROM t` 误杀 [1]。",
+        "refused": false,
+        "citations": [
+          4,
+          1
+        ],
+        "ok": true,
+        "ms": 10923,
+        "calls": 4,
+        "prompt_tokens": 22673,
+        "completion_tokens": 397,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q26",
+        "type": "fact",
+        "q": "为什么不用 LangSmith 做观测？",
+        "answer": "不用 LangSmith 做观测，是因为它需要 Key、需要联网，且是黑盒；项目改为自建 trace 落 SQLite，不依赖外部服务、断网可用，同时留了 exporter 口子但不假装实现。[6]\n\n依据：文档在观测选型中明确写了“不用 LangSmith：要 Key、要联网、黑盒”，并说明自建 trace 落 SQLite 的好处是“不依赖外部服务，断网可用；能讲清 span 埋点原理”。[6]",
+        "refused": false,
+        "citations": [
+          6
+        ],
+        "ok": true,
+        "ms": 10758,
+        "calls": 4,
+        "prompt_tokens": 22674,
+        "completion_tokens": 380,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q27",
+        "type": "fact",
+        "q": "手写 MCP Server 大约多少行代码？",
+        "answer": "手写 MCP Server 约 200 行代码 [1]。\n\n依据：文档在“Agent 接入”选型中写明，手写 MCP（JSON-RPC 2.0 over stdio）协议只有四个方法，自己实现约 200 行，且零新增依赖 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11139,
+        "calls": 4,
+        "prompt_tokens": 23070,
+        "completion_tokens": 331,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q28",
+        "type": "fact",
+        "q": "自研状态图引擎大约多少行？",
+        "answer": "自研状态图引擎约 270 行 [1]。\n\n依据：文档在编排选型中写明“自研状态图（≈270 行）”，并说明其目标是能讲清状态合并/条件边/检查点的实现、零版本漂移、节点是纯函数，换框架只换装配 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 11615,
+        "calls": 4,
+        "prompt_tokens": 23874,
+        "completion_tokens": 290,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q29",
+        "type": "fact",
+        "q": "数据量放大 100 倍时，DimIndex 现在最大支持多少个维度值？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 9393,
+        "calls": 2,
+        "prompt_tokens": 11829,
+        "completion_tokens": 82,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q30",
+        "type": "fact",
+        "q": "Agent 层有几个纯函数节点？",
+        "answer": "Agent 层有 6 个纯函数节点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 9127,
+        "calls": 3,
+        "prompt_tokens": 16264,
+        "completion_tokens": 54,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q31",
+        "type": "unanswerable",
+        "q": "这个项目的作者是谁？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 7678,
+        "calls": 3,
+        "prompt_tokens": 16110,
+        "completion_tokens": 54,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q32",
+        "type": "unanswerable",
+        "q": "项目部署的公网域名是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 7003,
+        "calls": 2,
+        "prompt_tokens": 11007,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q33",
+        "type": "unanswerable",
+        "q": "训练这套系统用了多少张 GPU？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 12144,
+        "calls": 3,
+        "prompt_tokens": 16003,
+        "completion_tokens": 39,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q34",
+        "type": "unanswerable",
+        "q": "团队一共有多少名工程师？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 11417,
+        "calls": 1,
+        "prompt_tokens": 5132,
+        "completion_tokens": 13,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q35",
+        "type": "unanswerable",
+        "q": "项目采用的开源许可证是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 10684,
+        "calls": 2,
+        "prompt_tokens": 10670,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q36",
+        "type": "unanswerable",
+        "q": "支持哪些语言的 OCR 识别？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 11700,
+        "calls": 2,
+        "prompt_tokens": 10805,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q37",
+        "type": "unanswerable",
+        "q": "数据库里一共有多少本书？",
+        "answer": "结论：证据中没有给出“一共有多少本书”的实际统计结果，只提供了该问题的金标准 SQL 写法。\n\n依据：评测集条目 Q01 的题面为“一共有多少本书”，对应 SQL 为 `SELECT COUNT(*) FROM dim_book`，备注为“单表计数” [1]。但证据中未出现该查询的执行结果或具体书目数量 [1][2][3][4][5][6]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "ok": false,
+        "ms": 13283,
+        "calls": 4,
+        "prompt_tokens": 21362,
+        "completion_tokens": 166,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q38",
+        "type": "unanswerable",
+        "q": "2026 年第三季度的营收是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 10641,
+        "calls": 2,
+        "prompt_tokens": 10612,
+        "completion_tokens": 63,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q39",
+        "type": "unanswerable",
+        "q": "与竞品 DataPilot 相比有哪些优势？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 11706,
+        "calls": 2,
+        "prompt_tokens": 11125,
+        "completion_tokens": 103,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q40",
+        "type": "unanswerable",
+        "q": "线上日均查询量是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 10768,
+        "calls": 2,
+        "prompt_tokens": 11237,
+        "completion_tokens": 26,
+        "n_chunks": 6
+      }
+    ]
+  }
+]
