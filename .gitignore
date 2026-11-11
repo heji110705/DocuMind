@@ -10,3 +10,6 @@ data/tmp/
 .DS_Store
 logs_*.txt
 data/tmp/
+q_test.txt
+data/*_k6.json
+data/*_v1.json
