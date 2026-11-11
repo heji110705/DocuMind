@@ -3,14 +3,16 @@
 基于 LightRAG 二次开发的文档问答系统：**段落级引用、证据不足拒答、全链路成本可计量**，
 在 30k 字中文技术文档上做四组消融，验证图谱召回 / 重排 / 证据判定各自贡献多少。
 
-> 二次开发声明：底座是 [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG)（MIT）。
-> 本仓库保留原 LICENSE 与 fork 历史；本文第 5 节列明"上游有什么 / 我加了什么 / 我否掉了什么"。
+> **二次开发声明**：底座是 [HKUDS/LightRAG](https://github.com/HKUDS/LightRAG)（MIT），
+> 以 pip 依赖方式使用（`lightrag-hku==1.5.7`），**未复制、未修改其源码**；
+> 所有改动都在本仓库自有模块里，通过公开参数与注入点（`llm_model_func` / `embedding_func` /
+> `rerank_model_func` / `chunking_func`）生效。第 5 节列明"上游有什么 / 我加了什么 / 我否掉了什么"。
 
 ---
 
 ## 1. 为什么做这个
 
-两个要解决的问题，都是直接跑 `rag.aquery()` 解决不了的：
+三个问题，都是直接跑 `rag.aquery()` 解决不了的：
 
 | 问题 | 直接调 `aquery()` | 本项目的做法 |
 |---|---|---|
@@ -136,7 +138,7 @@ python run_eval.py --tag plus --concurrency 2
 
 | 模块 | 来源 | 说明 |
 |---|---|---|
-| 图谱构建、混合召回、存储层 | **上游 LightRAG** | 未改动，通过公开参数与注入点使用 |
+| 图谱构建、混合召回、存储层 | **上游 LightRAG** | pip 依赖，未改动一行源码；通过公开参数与注入点使用 |
 | `llm_client.py` | **我写的** | 替换上游 LLM 封装：拿得到 usage，成本按真实 token 计；带重试计数 |
 | `query.py` | **我写的** | 证据优先取数 → 编号引用 → 证据判定 → 锚点注入 → 作答/拒答 |
 | `rerankers.py` | **我写的** | 本地 cross-encoder 重排，注入 `rerank_model_func`；截断 512 字符控制 CPU 耗时 |
