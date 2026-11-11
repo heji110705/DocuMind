@@ -127,3 +127,65 @@ async def llm_func(
                 raise
             await asyncio.sleep(2 * (attempt + 1))
     raise last  # pragma: no cover
+
+
+async def llm_stream(
+    prompt: str,
+    system_prompt: str | None = None,
+    history_messages: list | None = None,
+    **kwargs,
+):
+    """流式版本，逐段 yield 文本增量，最后 yield 一个 {"__usage__": ...} 供调用方结账。
+
+    为什么不用 llm_func 再切片：那样看起来是流式，实际是等整段返回后一次性吐出，
+    首 token 时间跟非流式一样。真流式必须走 stream=True。
+
+    usage 拿不到时（部分兼容实现不返回 stream_options）退化为按字符估算，
+    并在返回的 usage 里标 estimated=True——宁可标清"这是估的"，也不要混进真实账单。
+    """
+    messages: list[dict] = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    for m in history_messages or []:
+        messages.append(m if isinstance(m, dict) else {"role": "user", "content": str(m)})
+    messages.append({"role": "user", "content": prompt})
+
+    opts = {k: v for k, v in kwargs.items() if k in _ALLOWED and v is not None}
+    opts.setdefault("max_tokens", 4096)
+
+    t0 = time.perf_counter()
+    stream = await client().chat.completions.create(
+        model=os.environ.get("LLM_MODEL", "deepseek-chat"),
+        messages=messages,
+        stream=True,
+        stream_options={"include_usage": True},
+        **opts,
+    )
+    buf: list[str] = []
+    usage = None
+    async for chunk in stream:
+        if getattr(chunk, "usage", None):
+            usage = chunk.usage
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        piece = getattr(delta, "content", None)
+        if piece:
+            buf.append(piece)
+            yield piece
+
+    USAGE.seconds += time.perf_counter() - t0
+    USAGE.calls += 1
+    if usage is not None:
+        USAGE.prompt_tokens += usage.prompt_tokens
+        USAGE.completion_tokens += usage.completion_tokens
+        info = {"prompt_tokens": usage.prompt_tokens, "completion_tokens": usage.completion_tokens,
+                "estimated": False}
+    else:
+        text = "".join(buf)
+        pin = len(prompt) + len(system_prompt or "")
+        info = {"prompt_tokens": int(pin * 0.6), "completion_tokens": int(len(text) * 0.6),
+                "estimated": True}
+        USAGE.prompt_tokens += info["prompt_tokens"]
+        USAGE.completion_tokens += info["completion_tokens"]
+    yield {"__usage__": info}

@@ -9,3 +9,6 @@ python-dotenv==1.2.4
 # PDF 解析（本项目只做文本层，扫描件需另接 OCR）
 pymupdf==2.1
 numpy==2.5.4
+# Web 服务（SSE 流式 + 单页 UI）
+fastapi==0.162.4
+uvicorn==0.54.0

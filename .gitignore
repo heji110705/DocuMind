@@ -13,3 +13,10 @@ data/tmp/
 q_test.txt
 data/*_k6.json
 data/*_v1.json
+.pytest_cache/
+ui_*.png
+archive/
+data/eval_*.json
+data/eval_*.md
+# 四组消融的逐题明细留着，方便别人核对 README 里的表格
+!data/eval_prod.json

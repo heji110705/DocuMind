@@ -60,7 +60,20 @@ async def run_config(dm: DocuMind, items: list[dict], name: str, kw: dict, conc:
     async def one(it: dict) -> None:
         async with sem:
             t0 = time.perf_counter()
-            a = await dm.ask(it["q"], **kw)
+            try:
+                # 单题硬超时：评测里最怕的不是答错，是某一题卡住把后面全拖死。
+                # 卡住通常是上游 hang 或 rerank 死锁，等下去没有任何收益。
+                a = await asyncio.wait_for(dm.ask(it["q"], **kw), timeout=TIMEOUT_S)
+            except asyncio.TimeoutError:
+                rows.append({
+                    "id": it["id"], "type": it["type"], "q": it["q"],
+                    "answer": f"[TIMEOUT >{TIMEOUT_S}s]", "refused": True,
+                    "citations": [], "ok": False,
+                    "ms": TIMEOUT_S * 1000, "calls": 0,
+                    "prompt_tokens": 0, "completion_tokens": 0, "n_chunks": 0,
+                })
+                print(f"  [timeout] {it['id']} {it['q'][:30]}", flush=True)
+                return
             dt = int((time.perf_counter() - t0) * 1000)
             if it["type"] == "fact":
                 ok = (not a.refused) and hit(a.answer, it["must_include"])
@@ -87,7 +100,7 @@ async def run_config(dm: DocuMind, items: list[dict], name: str, kw: dict, conc:
     rows.sort(key=lambda r: r["id"])
 
     facts = [r for r in rows if r["type"] == "fact"]
-    unans = [r for r in rows if r["type"] == "unanswerable"]
+    unans = [r for r in rows if r["type"] in ("unanswerable", "refuse")]
     answered = [r for r in rows if not r["refused"]]
     total_cost = sum(cost_of(r["prompt_tokens"], r["completion_tokens"]) for r in rows)
 
@@ -129,13 +142,24 @@ def to_markdown(results: list[dict], tag: str) -> str:
     return f"索引：`{tag}`\n\n" + head + body + f"\n四组配置合计花费 ¥{total:.4f}。\n"
 
 
+TIMEOUT_S = 300
+
+
+def _save(results: list[dict], tag: str, path):
+    order = [c[0] for c in CONFIGS]
+    merged = {r["config"]: r for r in results}
+    out = sorted(merged.values(), key=lambda r: order.index(r["config"]) if r["config"] in order else 99)
+    path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out
+
+
 async def amain(args) -> None:
     spec = json.loads((ROOT / args.set).read_text(encoding="utf-8"))
     items = spec["items"]
     if args.limit:
         items = items[: args.limit]
 
-    dm = await DocuMind(args.tag, args.embed, use_rerank=True).open()
+    dm = await DocuMind(args.index_tag or args.tag, args.embed, use_rerank=True).open()
     results = []
     try:
         for name, kw in CONFIGS:
@@ -153,6 +177,16 @@ async def amain(args) -> None:
                 flush=True,
             )
             results.append(r)
+            # 关键：每跑完一组就写一次。之前是四组跑完才写，
+            # 结果第四组卡死、前三组数据全丢，白烧了一次钱。
+            prev = []
+            fp = ROOT / "data" / f"eval_{args.tag}.json"
+            if fp.exists():
+                try:
+                    prev = json.loads(fp.read_text(encoding="utf-8"))
+                except Exception:
+                    prev = []
+            _save([*prev, *results], args.tag, fp)
     finally:
         await dm.close()
 
@@ -178,15 +212,19 @@ async def amain(args) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--tag", default="noglean", help="用哪个索引目录")
-    p.add_argument("--set", default="eval_set.json")
+    p.add_argument("--tag", default="noglean", help="输出文件名用（data/eval_<tag>.json）")
+    p.add_argument("--index-tag", default="", help="用哪个索引目录，默认同 --tag")
+    p.add_argument("--set", default="eval_set_v2.json", help="评测集（默认 124 题 v2）")
     p.add_argument("--embed", default="local", choices=["bailian", "local"])
     p.add_argument("--limit", type=int, default=0, help="只跑前 N 题（冒烟用）")
     p.add_argument("--concurrency", type=int, default=3)
     p.add_argument("--configs", nargs="*", help="只跑指定配置")
+    p.add_argument("--timeout", type=int, default=300, help="单题超时秒数（默认 300）")
     p.add_argument("--chunk-top-k", type=int, default=0,
                    help="覆盖 chunk_top_k（0=用 query.py 默认值），用于控制检索预算做对照")
     args = p.parse_args()
+    global TIMEOUT_S
+    TIMEOUT_S = args.timeout
     asyncio.run(amain(args))
 
 

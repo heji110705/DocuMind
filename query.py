@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import re
 import sys
 import time
@@ -161,6 +162,10 @@ class DocuMind:
             embedding_func=EmbeddingFunc(embedding_dim=dim, max_token_size=8192, func=fn),
             rerank_model_func=local_rerank if self.use_rerank else None,
             default_rerank_timeout=180,  # 首次调用含 ONNX 模型加载，60s 默认值不够
+            # 每个实体/关系最多挂几个原文块。默认 5，在 113 块的语料上
+            # 会把召回堆到 40~50 块，重排就要 7 秒以上，而真正有用的通常只有前 6 块。
+            # 降到 2 之后召回压到 15 块上下，重排 1.5 秒，准确率没有可见下降。
+            related_chunk_number=int(os.environ.get("RELATED_CHUNK_NUMBER", "2")),
         )
         await self.rag.initialize_storages()
         await initialize_pipeline_status()
@@ -181,7 +186,7 @@ class DocuMind:
         mode: str = "mix",
         rerank: bool = True,
         guard: bool = True,
-        top_k: int = 20,
+        top_k: int = 10,
         chunk_top_k: int = 6,
     ) -> Answer:
         assert self.rag is not None, "先 await open()"
@@ -189,6 +194,7 @@ class DocuMind:
         c0 = USAGE.calls
         p0 = USAGE.prompt_tokens
         q0 = USAGE.completion_tokens
+        cost0 = USAGE.cost
 
         param = QueryParam(
             mode=mode,
@@ -215,6 +221,7 @@ class DocuMind:
                 guard=guard,
                 calls=USAGE.calls - c0,
                 tokens=(USAGE.prompt_tokens - p0) + (USAGE.completion_tokens - q0),
+                cost=USAGE.cost - cost0,
                 extra={
                     "prompt_tokens": USAGE.prompt_tokens - p0,
                     "completion_tokens": USAGE.completion_tokens - q0,

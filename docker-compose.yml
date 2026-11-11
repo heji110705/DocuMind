@@ -1,0 +1,25 @@
+# 本地一键起：docker compose up --build
+# 首次要挂载已建好的索引（rag_storage/prod）；没有就先在宿主机跑 run_index.py。
+services:
+  documind:
+    build: .
+    image: documind:1.5
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      PDF_BACKEND: pymupdf
+      TAG: prod
+    volumes:
+      - ./rag_storage:/app/rag_storage:ro   # 索引只读挂载：容器不该改索引
+      - ./data:/app/data:ro
+      - ./traces.sqlite:/app/traces.sqlite  # trace 要可写，单独挂文件
+    restart: unless-stopped
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s

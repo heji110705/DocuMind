@@ -1,0 +1,5 @@
+# 可选：更强的 PDF 版面解析（保留表格结构、识别多栏）
+# 装上之后 loaders.py 会自动优先用它，没装则退回 PyMuPDF 字号推断。
+# 代价：会拉 torch，镜像从 ~700MB 涨到 ~2.8GB，首次运行还要下版面模型。
+-r requirements.txt
+docling>=2.60
