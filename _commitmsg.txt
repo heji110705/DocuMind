@@ -1,0 +1,26 @@
+按外部评审补两处硬缺口：可复现环境与部署口径
+
+外部评审指出「项目当前无法启动」。我第一次核实得出「能跑」，这个核实是错的：
+Git Bash 里的 python 装了依赖，Windows 终端里的 python（系统 3.12）没装。
+用户按 README 走启动脚本时用的是后者，确实会撞 ModuleNotFoundError。
+所以结论对、归因不全对：3.12 没被删，虚拟环境也不是失效而是从来没有。
+
+启动脚本
+- 探测 lightrag / fastapi / uvicorn / fastembed 四个关键包，缺了就打印可复制的
+  venv + pip 两条命令并退出，不再抛裸 ModuleNotFoundError。
+- 有 .venv 时优先用 .venv 的解释器。
+- 刻意不做自动安装：往系统解释器装包会污染全局，且本机 pip 出现过静默挂起
+  （零输出不退出），自动装卡住比报错更难排查。
+- 提示里带上执行策略的绕法（默认策略会拦脚本，实测报 AuthorizationManager 检查失败）。
+- 探测时临时关掉 ErrorActionPreference=Stop，否则 import 失败的 traceback
+  会直接终止脚本（已实测踩到）。
+- 保留 UTF-8 with BOM，否则 PowerShell 5.1 按 ANSI 读中文会引号配对错乱。
+
+文档
+- README：4 节把虚拟环境提到第 0 步；11.2 补两个 Windows 门槛（执行策略、解释器指向）。
+- REVIEW：新增 3.5 环境可复现性（含我判断错的原因）；风险编号后移到 3.6；
+  新增 8 节逐条核对豆包的 11 条结论（对 / 错 / 滞后 / 值得借鉴）；新增 9 节返工量化。
+
+口径修正
+- InsightPilot 的 GitHub Pages 是静态 HTML 原型，完整系统同样没有公网部署。
+  原稿按「已上线」理解会高估两边差距，已在 5.2 与 8 节更正。

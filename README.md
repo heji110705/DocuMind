@@ -273,7 +273,12 @@ LLM 用 `deepseek-chat`（非思考模式），embedding 用本地 `bge-small-zh
 ## 4. 怎么跑
 
 ```bash
-pip install -r requirements.txt
+# 0. 先建独立环境。不用系统 Python 装依赖——理由见 11.2 节：
+#    同一个 shell 里的 "python" 可能指向完全不同的解释器，这是"在我机器上能跑"的根因。
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements.txt     # Windows
+# source .venv/bin/activate && pip install -r requirements.txt  # macOS / Linux
+
 cp .env.example .env      # 填 LLM_API_KEY（DeepSeek）
 
 # 1. 自检 embedding（本地后端，不需要任何云端额度）
@@ -697,6 +702,17 @@ docker images documind:1.5               # 期望 ~700MB（不含 docling）
 没有 Docker 也能一条命令起：`start.ps1`（Windows）/ `start.sh`。脚本会自己补 `.env`、
 自己判断要不要先建索引。
 
+> **两个 Windows 上一定会撞的门槛**（都被一次外部评审点出来过）：
+>
+> 1. **执行策略**。PowerShell 默认禁止运行 `.ps1`，直接跑会报
+>    `AuthorizationManager 检查失败`。先执行
+>    `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`，再 `.\start.ps1`。
+> 2. **`python` 指向哪个解释器**。PowerShell 里的 `python` 往往是系统装的
+>    `D:\Python312`（没装本项目依赖），而 Git Bash 里可能是另一个。表现是同一份代码
+>    "在一边能跑、在另一边 `ModuleNotFoundError`"。现在 `start.ps1` 会先探测四个关键包，
+>    缺了就打印可直接复制的 `python -m venv .venv` + `pip install` 两条命令并退出，
+>    装完重跑会自动优先使用 `.venv`。
+>
 > 踩坑记录：`start.ps1` 里有中文，PowerShell 5.1 默认按 ANSI 读文件，中文变乱码后引号配对错乱，
 > 报"字符串缺少终止符"。修法是存成 **UTF-8 with BOM**。这个坑在编辑器里看不出来
 > （编辑器按 UTF-8 显示，一切正常），只有真正执行时才炸。
