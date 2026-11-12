@@ -11,7 +11,13 @@ fi
 
 if ! python -c "import fastapi, uvicorn, lightrag" 2>/dev/null; then
   echo "[*] 安装依赖 ..."
-  pip install -r requirements.txt -q
+  # 优先用 lock（精确复现已知可用的环境）；lock 缺失时退回 requirements.txt。
+  # 只退不回，绝不静默跳过——缺依赖时宁可报错，也不起一个半残的服务。
+  if [ -f requirements.lock ]; then
+    pip install -r requirements.lock -q
+  else
+    pip install -r requirements.txt -q
+  fi
 fi
 
 # 索引目录名要和 app 读到的 TAG 一致：.env 里写了 TAG 就得用它，

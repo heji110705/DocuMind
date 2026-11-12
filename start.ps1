@@ -58,11 +58,13 @@ $ErrorActionPreference = $prevEAP
 
 if ($missing.Count -gt 0) {
     $where = (& $py -c "import sys; print(sys.executable)" 2>$null)
+    # 优先提示用 lock（精确复现已知可用环境）；lock 缺失时退回 requirements.txt。
+    $lockHint = if (Test-Path "requirements.lock") { "requirements.lock" } else { "requirements.txt" }
     Write-Host "[!] 当前解释器缺少依赖：$($missing -join ', ')" -ForegroundColor Red
     Write-Host "    解释器：$where" -ForegroundColor Red
     Write-Host "    先执行下面两条（在项目根目录）：" -ForegroundColor Yellow
     Write-Host "      python -m venv .venv" -ForegroundColor Yellow
-    Write-Host "      .venv\Scripts\python.exe -m pip install -r requirements.txt" -ForegroundColor Yellow
+    Write-Host "      .venv\Scripts\python.exe -m pip install -r $lockHint" -ForegroundColor Yellow
     Write-Host "    装完重跑本脚本即可——它会自动优先使用 .venv。" -ForegroundColor Yellow
     Write-Host "    注意：PowerShell 默认执行策略会拦这个脚本，需要先执行" -ForegroundColor DarkGray
     Write-Host "      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass" -ForegroundColor DarkGray

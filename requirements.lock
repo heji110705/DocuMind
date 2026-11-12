@@ -1,0 +1,186 @@
+# requirements.lock —— 锁定当前已验证可用的完整环境（Python 3.13）
+#
+# 这是本机（能跑通 128 个测试的那台）`pip freeze` 的产物，163 个包全部精确到 ==。
+# 用途：换机器 / CI / Docker 构建时，用它代替 requirements.txt 直接复现同一个环境，
+#       而不是"装最新版碰运气"——主版本号约束挡不住 minor 版本里引入的破坏性变更。
+#
+# 为什么不用 pip-compile / pip-tools：
+#   1. 这台机器的 pip 会静默挂起（零输出、不退出），pip-compile 依赖 pip 解析，跑不动；
+#   2. requirements.txt 里 9 个直接依赖本身已是 == 精确约束，缺的是"传递依赖"这层，
+#      freeze 恰好能补上它。
+#
+# 与 requirements.txt 的分工：
+#   requirements.txt     —— 人读的、带注释的意图声明（9 个直接依赖）
+#   requirements.lock    —— 机器读的、全量精确锁定（含传递依赖，163 个）
+#   两者缺一不可：只留 lock 会丢失"为什么要这些包"的注释，只留 txt 会丢失版本可复现性。
+#
+# 复现方式：
+#   python -m venv .venv
+#   .venv/Scripts/python.exe -m pip install -r requirements.lock
+#
+# 注意：本 lock 是"运行时 + 测试"合并锁。OCR(docling/torch) 是可选依赖，本机未装，
+#       因此不在其中——需要 OCR/更强版面解析时，在 lock 之后追加 requirements-ocr.txt。
+
+CairoSVG==2.9.1
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+PyJWT==2.15.1
+PyYAML==6.0.3
+Pygments==2.21.0
+SQLAlchemy==2.1.8
+aiofiles==25.1.0
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.5
+aiosignal==1.4.0
+annotated-doc==0.0.6
+annotated-types==0.8.0
+anyio==4.16.0
+ascii_colors==0.13.1
+attrs==26.1.0
+bcrypt==5.0.0
+blis==1.3.4
+cairocffi==1.7.1
+catalogue==2.0.10
+certifi==2026.10.23
+cffi==2.1.1
+charset-normalizer==3.5.2
+click==8.5.1
+cloudpathlib==0.26.0
+colorama==0.4.6
+confection==1.3.4
+configparser==7.3.0
+cryptography==50.0.2
+cssselect2==0.10.1
+cymem==2.0.16
+defusedxml==0.7.1
+distro==1.9.0
+ecdsa==0.19.2
+et_xmlfile==2.0.0
+fastapi==0.162.4
+fastembed==0.9.1
+filelock==4.2.10
+flatbuffers==25.12.19
+frozenlist==1.8.0
+fsspec==2026.9.0
+google-api-core==2.44.0
+google-auth==2.62.2
+google-genai==2.34.0
+googleapis-common-protos==1.76.0
+gunicorn==27.0.0
+h11==0.16.0
+hf-xet==1.8.0
+httpcore==1.0.9
+httpcore2==2.16.0
+httpx==0.28.1
+httpx-sse==0.4.3
+httpx2==2.16.0
+huggingface_hub==1.33.0
+idna==3.20
+imageio-ffmpeg==0.8.1
+iniconfig==2.3.1
+jiter==0.19.0
+json_repair==0.64.9
+jsonpatch==1.46
+jsonpointer==3.11
+langchain-classic==1.0.8
+langchain-community==0.4.2
+langchain-core==1.7.7
+langchain-experimental==0.4.2
+langchain-protocol==0.0.21
+langchain-text-splitters==1.1.3
+langsmith==0.14.17
+lightrag-hku==1.5.7
+loguru==0.7.3
+lxml==6.1.3
+markdown-it-py==4.3.0
+mdurl==0.1.2
+mmh3==5.3.1
+multidict==7.2.1
+murmurhash==1.0.16
+nano-vectordb==0.0.4.3
+networkx==3.7
+numpy==2.5.4
+onnxruntime==1.31.1
+openai==3.49.0
+opencv-python==5.0.0.93
+openpyxl==3.1.5
+opentelemetry-api==1.45.2
+orjson==3.13.0
+packaging==26.3
+pandas==3.1.1
+pillow==13.0.0
+pip==26.1.2
+pipmaster==1.2.2
+pluggy==1.7.0
+preshed==3.0.15
+propcache==0.5.4
+proto-plus==1.29.0
+protobuf==7.36.2
+psutil==7.2.2
+py_rust_stemmers==0.1.8
+pyasn1==0.6.5
+pyasn1_modules==0.4.2
+pyclipper==1.4.0
+pycparser==3.12
+pycryptodome==3.24.1
+pydantic==2.14.3
+pydantic-settings==2.16.2
+pydantic_core==2.50.4
+pymupdf==2.1
+pymupdf4llm==2.1
+pymupdf_layout==2.1
+pypdf==6.21.1
+pypinyin==0.55.0
+pytest==9.2.0
+python-dateutil==4.0.0
+python-docx==1.2.0
+python-dotenv==1.2.4
+python-jose==3.5.0
+python-multipart==0.0.33
+python-pptx==1.0.2
+pytz==2026.6
+rapidocr-onnxruntime==1.2.3
+regex==2026.11.9
+requests==2.34.2
+requests-toolbelt==1.0.0
+rich==15.0.0
+rsa==4.9.1
+scipy==1.18.1
+setuptools==84.2.1
+shapely==2.2.0
+shellingham==1.5.4
+six==1.17.0
+smart_open==9.0.3
+sniffio==1.3.1
+spacy==3.8.16
+spacy-legacy==3.0.12
+spacy-loggers==1.0.5
+srsly==2.5.6
+starlette==1.10.0
+tabulate==0.10.0
+tenacity==9.1.4
+thinc==8.3.14
+tiktoken==0.14.0
+tinycss2==1.5.1
+tokenizers==0.23.3
+tqdm==4.70.1
+truststore==0.10.5
+typer==0.29.0
+typing-inspection==0.4.5
+typing_extensions==4.16.0
+tzdata==2026.6
+urllib3==2.8.0
+uuid_utils==0.19.0
+uvicorn==0.54.0
+uvicorn-worker==0.4.0
+wasabi==1.1.3
+wcwidth==0.9.4
+weasel==1.0.1
+webencodings==0.6.1
+websockets==17.4
+win32_setctime==1.2.1
+wrapt==2.5.2
+xlsxwriter==3.3.1
+xxhash==4.1.0
+yarl==1.25.1
+zstandard==0.25.0

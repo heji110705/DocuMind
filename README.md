@@ -346,8 +346,10 @@ LLM 用 `deepseek-chat`（非思考模式），embedding 用本地 `bge-small-zh
 # 0. 先建独立环境。不用系统 Python 装依赖——理由见 11.2 节：
 #    同一个 shell 里的 "python" 可能指向完全不同的解释器，这是"在我机器上能跑"的根因。
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r requirements.txt     # Windows
-# source .venv/bin/activate && pip install -r requirements.txt  # macOS / Linux
+# 优先用 lock（精确复现已知可用的 163 个包，含传递依赖）；
+# 没有 lock 才退回 requirements.txt（只有 9 个直接依赖，装最新版）。
+.venv/Scripts/python.exe -m pip install -r requirements.lock     # Windows
+# source .venv/bin/activate && pip install -r requirements.lock  # macOS / Linux
 
 cp .env.example .env      # 填 LLM_API_KEY（DeepSeek）
 
@@ -459,6 +461,11 @@ fastembed 0.9.1        # 本地 embedding + 本地重排
 pymupdf 2.1
 CPU: i9-12900H（6P + 8E，20 线程） / 内存 16GB
 ```
+
+**依赖的两个文件，分工不同**：`requirements.txt` 是人读的意图声明（9 个直接依赖 + 注释），
+`requirements.lock` 是机器读的全量精确锁定（163 个包，含全部传递依赖，`pip freeze` 产物）。
+换机器 / CI / Docker 构建一律用 lock，保证复现的是"已知能跑通 128 个测试"的那个环境，
+而不是"装最新版碰运气"。OCR（docling/torch）是可选依赖，不在 lock 里，需要时在 lock 之后再装 `requirements-ocr.txt`。
 
 **这台机器的两个物理约束直接决定了性能结论**（第 14 节）：
 大小核混排让 cross-encoder 的线程数存在一个明显最优点（4）；

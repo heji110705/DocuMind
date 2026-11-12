@@ -59,13 +59,13 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            requirements.txt
+            requirements.lock
             requirements-ocr.txt
 
       - name: 安装完整依赖
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt -r requirements-ocr.txt
+          python -m pip install -r requirements.lock -r requirements-ocr.txt
 
       - name: 依赖完整性（完整依赖下的严格版）
         run: python -m tools.check_requirements
