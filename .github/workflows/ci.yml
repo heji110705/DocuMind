@@ -70,8 +70,11 @@ jobs:
       - name: 依赖完整性（完整依赖下的严格版）
         run: python -m tools.check_requirements
 
-      - name: 慢测
-        run: python -m pytest -q -m "slow"
+      # 这里跑**全量**而不是只跑 `-m slow`：test_answer_path.py 需要 lightrag 才能
+      # import，在 unit job 里被 importorskip 跳过了。如果这个 job 也只跑 slow，
+      # 那条用例就永远不会在 CI 里执行——"跳过的测试"和"没有的测试"是一回事。
+      - name: 全量测试（含 slow 与需要 lightrag 的用例）
+        run: python -m pytest -q
         env:
           # 指标与重排模型在测试里都是懒加载，这里只保证不会去连外网下载
           HF_HUB_OFFLINE: "0"

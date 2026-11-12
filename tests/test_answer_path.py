@@ -28,7 +28,14 @@ import asyncio
 
 import pytest
 
-import query as Q
+# 这个文件要 import query，而 query.py 在模块级 import lightrag。
+# CI 的 unit job 只装 requirements-fast.txt（不含 lightrag），不跳过就会整批
+# collection error——那会让"最小依赖也能跑测试"这件事变成空话。
+# 用 importorskip 而不是 try/except ImportError：后者会把真正的 import 错误
+# （比如 query.py 里写错了模块名）也一起吞掉。
+pytest.importorskip("lightrag", reason="query.py 依赖 lightrag，属完整依赖层（见 CI 的 full job）")
+
+import query as Q  # noqa: E402
 
 
 def run(coro):
