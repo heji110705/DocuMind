@@ -152,6 +152,15 @@ class DocuMind:
             # 会把召回堆到 40~50 块，重排就要 7 秒以上，而真正有用的通常只有前 6 块。
             # 降到 2 之后召回压到 15 块上下，重排 1.5 秒，准确率没有可见下降。
             related_chunk_number=int(os.environ.get("RELATED_CHUNK_NUMBER", "2")),
+            # LLM 响应缓存的开关。默认开（省时间省钱），设 LLM_CACHE=0 关掉。
+            #
+            # 为什么需要一个开关，而不是"反正有缓存更好"：LightRAG 会把关键词抽取
+            # 的结果落盘到 kv_store_llm_response_cache.json，同一道题第二次跑就不再
+            # 调模型。于是**评测跑出来的 unit cost 取决于缓存状态**，而不是系统本身。
+            # 实测同一配置：缓存热时 124 题全部只 1 次调用 / 3,353 token，
+            # 冷启动时 2 次调用 / 4,383 token——差 31%。
+            # 不把两种口径分开测，成本表就是一堆不可比的数字。
+            enable_llm_cache=os.environ.get("LLM_CACHE", "1") != "0",
         )
         await self.rag.initialize_storages()
         await initialize_pipeline_status()

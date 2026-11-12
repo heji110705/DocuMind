@@ -147,8 +147,13 @@ async def llm_func(
     opts = {k: v for k, v in kwargs.items() if k in _ALLOWED and v is not None}
     opts.setdefault("max_tokens", 4096)
 
+    # 重试次数与退避。默认 3 次（服务端用，用户最多等 6 秒）；
+    # 评测跑批设 LLM_RETRIES=5（最多等 60 秒），因为一次 25 分钟的长跑
+    # 不该被一次几十秒的网络抖动毁掉——实测踩过：代理端口切换导致整轮 124 题
+    # 全部 APIConnectionError，白跑。
+    attempts = max(1, int(os.environ.get("LLM_RETRIES", "3")))
     last: Exception | None = None
-    for attempt in range(3):
+    for attempt in range(attempts):
         t0 = time.perf_counter()
         try:
             r = await client().chat.completions.create(
@@ -165,9 +170,9 @@ async def llm_func(
         except Exception as e:  # 限流 / 网络抖动 / 5xx
             last = e
             USAGE.retries += 1
-            if attempt == 2:
+            if attempt == attempts - 1:
                 raise
-            await asyncio.sleep(2 * (attempt + 1))
+            await asyncio.sleep(2 ** (attempt + 1))
     raise last  # pragma: no cover
 
 

@@ -31,6 +31,11 @@ data/eval_*.md
 !data/eval_prod.json
 !data/eval_prod4.json
 !data/eval_multiturn.json
+# 冷启动/热缓存与重复性检验的原始数据（README 2.1.1 的误差棒全靠它们可核对）
+!data/eval_cold1.json
+!data/eval_cold2.json
+!data/eval_warm1.json
+!data/eval_warm2.json
 
 # 用户上传的文档（内容属于使用者，不进仓库；目录结构由 app/ingest.py 自己建）
 data/uploads/

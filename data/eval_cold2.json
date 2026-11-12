@@ -1,0 +1,2005 @@
+[
+  {
+    "config": "full",
+    "n": 124,
+    "acc_fact": 89.4,
+    "acc_fact_raw": "84/94",
+    "refusal_acc": 100.0,
+    "refusal_raw": "30/30",
+    "overall": 91.9,
+    "overall_raw": "114/124",
+    "citation_rate": 100.0,
+    "p50_ms": 28448,
+    "mean_chunks": 6,
+    "calls": 335,
+    "prompt_tokens": 788781,
+    "completion_tokens": 14545,
+    "cost": 0.9064,
+    "cost_per_q": 0.00731,
+    "rows": [
+      {
+        "id": "Q001",
+        "type": "fact",
+        "q": "fact_order 这张表的粒度是什么？",
+        "answer": "fact_order 的粒度是一行一个订单行，由 order_id 和 book_id 共同标识，一单多书时会拆成多行 [1][2]。\n\n依据：字段字典在 fact_order 表说明的第一行写明该粒度 [1]；查询模板文档也将其描述为“一单一书一行”，并据此要求订单数必须去重 [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 49048,
+        "calls": 3,
+        "prompt_tokens": 7987,
+        "completion_tokens": 143,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q002",
+        "type": "fact",
+        "q": "订单数直接用 COUNT(*) 不去重，会高估多少？",
+        "answer": "会高估 28%[1][3]。\n\n依据：`fact_order` 的粒度是一单一书一行，一个订单买三本书就会算成三行，所以直接 `COUNT(*)` 得到的是订单行数而非订单数，实测比真实订单数高 28%[1][3]。而且这个偏差会随「一单多书」的比例变化，不是固定系数，无法事后校正[3]。正确做法是 `COUNT(DISTINCT order_id)`，或直接使用 `order_cnt` 指标卡[3]。",
+        "refused": false,
+        "citations": [
+          1,
+          3
+        ],
+        "ok": true,
+        "ms": 28830,
+        "calls": 3,
+        "prompt_tokens": 7661,
+        "completion_tokens": 206,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q003",
+        "type": "fact",
+        "q": "dim_book 一共有多少行？",
+        "answer": "dim_book 一共有 42,180 行 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 21210,
+        "calls": 3,
+        "prompt_tokens": 7873,
+        "completion_tokens": 57,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q004",
+        "type": "fact",
+        "q": "dim_book 的 rating_avg 用的是几分制？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 26845,
+        "calls": 2,
+        "prompt_tokens": 4228,
+        "completion_tokens": 44,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q005",
+        "type": "fact",
+        "q": "评分类指标不过滤 is_valid 会让数值虚高多少？",
+        "answer": "评分类指标不过滤 `is_valid` 会让均分虚高约 3.2% [1][2][3]。\n\n依据：文档指出，`is_valid=0` 的行是刷分、作者自评和重复提交，不加过滤会让均分虚高约 3.2%，且高分书被系统性放大，因为刷分主要打高分 [1][2]。字段字典也明确，所有评分类指标默认加 `is_valid=1`，不加会虚高约 3.2% [3]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 47232,
+        "calls": 3,
+        "prompt_tokens": 7797,
+        "completion_tokens": 190,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q006",
+        "type": "fact",
+        "q": "计算 DAU 时应该用哪个字段去重？",
+        "answer": "计算 DAU 时应该用 `user_id` 去重，但要注意这样算出的 DAU 会偏低。[5]\n\n依据：字段字典指出，31% 的事件没有登录态，`user_id` 为 NULL 会被聚合函数直接丢掉，算出来的 DAU 会比真实值低三成。[5]",
+        "refused": false,
+        "citations": [
+          5
+        ],
+        "ok": false,
+        "ms": 28446,
+        "calls": 3,
+        "prompt_tokens": 7090,
+        "completion_tokens": 159,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q007",
+        "type": "fact",
+        "q": "fact_click 里没有登录态的事件占多少比例？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 37615,
+        "calls": 2,
+        "prompt_tokens": 4363,
+        "completion_tokens": 48,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q008",
+        "type": "fact",
+        "q": "用 list_price 乘数量算 GMV，会系统性高估多少？",
+        "answer": "用 list_price 乘数量算 GMV，会系统性高估 18%~25% [1][4]。\n\n依据是：list_price 是定价（封面标价），并非实际成交价，用它算 GMV 会系统性高估 18%~25%，成交价要看 fact_order.pay_amount [1]。实测 list_price 乘数量得到的金额比实际 pay_amount 高 18%~25%，差额来自券、活动价、会员价，以及运费的反向影响（满 99 包邮会拉低差额比例）[4]。因此涉及金额的分析一律用 pay_amount，list_price 只在算折扣深度时作为分母 [4]。",
+        "refused": false,
+        "citations": [
+          1,
+          4
+        ],
+        "ok": true,
+        "ms": 31528,
+        "calls": 3,
+        "prompt_tokens": 7799,
+        "completion_tokens": 215,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q009",
+        "type": "fact",
+        "q": "fact_order 里赠品的 book_id 有什么特征？",
+        "answer": "赠品的 book_id 为负值，从 -1 开始，统计时需要排除。[3][5]\n\n依据：字段字典中 `fact_order.book_id` 的「误用」说明写明赠品 book_id 为负值（-1 起），需排除；[3][5] 指标字典在「销量」口径注意中也要求含赠品（book_id < 0）时必须先排除。[2]",
+        "refused": false,
+        "citations": [
+          3,
+          5,
+          2
+        ],
+        "ok": true,
+        "ms": 36534,
+        "calls": 3,
+        "prompt_tokens": 7995,
+        "completion_tokens": 153,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q010",
+        "type": "fact",
+        "q": "订单满多少元包邮？",
+        "answer": "订单满 99 元包邮，未满 99 元则收 8 元运费 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 33683,
+        "calls": 3,
+        "prompt_tokens": 7785,
+        "completion_tokens": 83,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q011",
+        "type": "fact",
+        "q": "不满包邮门槛时运费是多少？",
+        "answer": "不满包邮门槛时运费是 8 元。[1]\n\n依据：运费字段的口径为“满 99 包邮，否则 8 元”。[1]",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 44052,
+        "calls": 3,
+        "prompt_tokens": 6698,
+        "completion_tokens": 98,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q012",
+        "type": "fact",
+        "q": "discount_amount 和 pay_amount、freight 的关系是什么？",
+        "answer": "**结论：** `discount_amount` 是由 `list_amount`、`pay_amount`、`freight` 三者派生出来的差额，不能与 `pay_amount` 相加 [1][2]。\n\n**依据：**\n- 字段字典给出的口径是 `discount_amount = list_amount - (pay_amount - freight)`，即优惠总额（券 + 活动 + 会员价）[2]。\n- 等价地，正确关系为 `list_amount - discount_amount + freight = pay_amount` [1]。\n- `pay_amount` 是实付金额，含运费、已扣优惠 [2]；`freight` 是运费，满 99 包邮，否则 8 元 [2]。\n- 因此 `discount_amount` 是差额本身，把它和实付相加得到的是「原价 + 运费 + 优惠」这种无意义的值 [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 28947,
+        "calls": 3,
+        "prompt_tokens": 7861,
+        "completion_tokens": 253,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q013",
+        "type": "fact",
+        "q": "做周同比时，除了 iso_week 还必须用哪个字段？",
+        "answer": "做周同比时，除了 `iso_week`，还必须同时使用 `iso_year` 字段。\n\n依据：ISO 周跨年时，12 月 31 日可能属于次年第 1 周，因此周同比必须用 `iso_year + iso_week` [1]。若用自然年 `year` 搭配 `iso_week` 分组，年末会出现只有 2-3 天的「第 53 周」，导致同比曲线在跨年处出现尖刺 [2]。正确做法是按 `iso_year, iso_week` 分组 [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 14103,
+        "calls": 3,
+        "prompt_tokens": 7958,
+        "completion_tokens": 196,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q014",
+        "type": "fact",
+        "q": "dim_category 一共几级分类？",
+        "answer": "dim_category 是两级分类树，只有一级和二级，共 2 级 [3]。\n\n依据：`level` 字段定义为 1=一级、2=二级，且明确说明只有两级，曾有三级但已在重构中拍平 [3]；`parent_id` 为空表示一级分类 [3]。",
+        "refused": false,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 31155,
+        "calls": 3,
+        "prompt_tokens": 7546,
+        "completion_tokens": 123,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q015",
+        "type": "fact",
+        "q": "dim_date 覆盖到哪一年为止？",
+        "answer": "dim_date 的覆盖范围是 2019-01-01 至 2027-12-31，且要求无缺日 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 29438,
+        "calls": 3,
+        "prompt_tokens": 8021,
+        "completion_tokens": 114,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q016",
+        "type": "fact",
+        "q": "bridge_book_tag 的 tag_type 有哪几种取值？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 25779,
+        "calls": 2,
+        "prompt_tokens": 4241,
+        "completion_tokens": 44,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q017",
+        "type": "fact",
+        "q": "fact_click 里已废弃、但仍残留在 2023 年数据里的事件类型是什么？",
+        "answer": "已废弃但仍残留在 2023 年数据里的事件类型是 `view` [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 26670,
+        "calls": 3,
+        "prompt_tokens": 8076,
+        "completion_tokens": 108,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q018",
+        "type": "fact",
+        "q": "fact_order 的 stat_date 是怎么来的？",
+        "answer": "`fact_order.stat_date` 是由 `pay_time` 派生出来的，含义是支付日期，同时作为分区键使用 [1]。需要注意，未支付订单的该字段为 NULL，过滤时要留意 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 21637,
+        "calls": 3,
+        "prompt_tokens": 8087,
+        "completion_tokens": 113,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q019",
+        "type": "fact",
+        "q": "出版社更名后会换 publisher_id 吗？",
+        "answer": "不会换。出版社更名后仍保留原来的 publisher_id，改名前后的名称会同时出现在 publisher_name 与 former_name 中 [1][2]。因此按名称分组会把同一家出版社拆成两行，去重应使用 publisher_id [1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 33284,
+        "calls": 3,
+        "prompt_tokens": 7911,
+        "completion_tokens": 123,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q020",
+        "type": "fact",
+        "q": "dim_author 里 country 为「未知」的占比是多少？",
+        "answer": "「未知」占比为 23% [1]。\n\n依据：`country` 字段口径为人工维护、缺失填「未知」，字段字典在误用说明中写明「未知」占比 23%，并提示按国家排名时不要把未知当其他国家 [1]。此外数据质量规则要求该字段非空、空值填「未知」，说明缺失值会统一归入「未知」而非留空 [5]。",
+        "refused": false,
+        "citations": [
+          1,
+          5
+        ],
+        "ok": true,
+        "ms": 28496,
+        "calls": 3,
+        "prompt_tokens": 7785,
+        "completion_tokens": 156,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q021",
+        "type": "fact",
+        "q": "gmv_net 会扣掉退款中的订单吗？",
+        "answer": "不会。`gmv_net` 只扣已退款（`refunded`）的订单，退款中（`refunding`）的订单仍计入净额 [1][4]。",
+        "refused": false,
+        "citations": [
+          1,
+          4
+        ],
+        "ok": true,
+        "ms": 37564,
+        "calls": 3,
+        "prompt_tokens": 6495,
+        "completion_tokens": 127,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q022",
+        "type": "fact",
+        "q": "客单价 aov 的分母用的是哪个指标？",
+        "answer": "客单价 `aov` 的分母是订单数 `order_cnt`，即去重后的订单号数量。[1][3][5]\n\n依据：`aov` 的公式为 `gmv_gross / order_cnt`，其中 `order_cnt` 按 `COUNT(DISTINCT order_id)` 计算，且必须去重，因为一单多书会拆成多行。[1][4] 若用订单行数做分母，得到的是“单本书均价”，两者数值相差约 28%。[3][5]",
+        "refused": false,
+        "citations": [
+          1,
+          3,
+          5,
+          4
+        ],
+        "ok": true,
+        "ms": 24267,
+        "calls": 3,
+        "prompt_tokens": 7348,
+        "completion_tokens": 189,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q023",
+        "type": "fact",
+        "q": "ARPPU 的分母是活跃用户还是付费用户？",
+        "answer": "ARPPU 的分母是付费用户，不是活跃用户 [1][2]。\n\n依据：ARPU 与 ARPPU 的分母差一个「是否付费」——ARPU = GMV / 全部活跃用户，ARPPU = GMV / 付费用户 [1][2]。指标字典也明确 ARPPU 的分母是去重付费用户 [3]。两者用途不同：ARPU 看整体变现效率，ARPPU 看付费用户的消费能力（钱包深度）[1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 27892,
+        "calls": 3,
+        "prompt_tokens": 7692,
+        "completion_tokens": 190,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q024",
+        "type": "fact",
+        "q": "退款率的分母包不包括未支付的关闭订单？",
+        "answer": "不包括。退款率的分母是支付成功的订单，即状态为 paid、shipped、done、refunding、refunded 的订单，未支付的关闭单（closed）不在其中 [1][2][3]。如果把 closed 也算进分母，退款率会被系统性低估约 4 个百分点，2026-03 曾修正过一次，修正后退款率整体上浮 [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 35282,
+        "calls": 3,
+        "prompt_tokens": 7723,
+        "completion_tokens": 159,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q025",
+        "type": "fact",
+        "q": "CTR 的分母是什么？",
+        "answer": "CTR 的分母是曝光数，即点击数除以曝光数 [2]。\n\n在计算时，分母必须限定 `event_type`，因为废弃的 `view` 事件会污染分母 [2]；2023 年的数据里残留了已废弃的 `view` 类型，不限定会把分母撑大 [5]。",
+        "refused": false,
+        "citations": [
+          2,
+          5
+        ],
+        "ok": true,
+        "ms": 21917,
+        "calls": 3,
+        "prompt_tokens": 7859,
+        "completion_tokens": 117,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q026",
+        "type": "fact",
+        "q": "渠道 ROI 的分子用的是总额还是净额？",
+        "answer": "渠道 ROI 的分子用的是**净额**，不是总额。\n\n依据：渠道 ROI 定义为“渠道带来的净 GMV 除以渠道花费”，公式为 `gmv_net_channel / cost` [1]；口径注意中明确“只用净额不用总额” [1]。此外，该指标只对 is_paid=1 的渠道计算，自然流量 ROI 无定义 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 34455,
+        "calls": 3,
+        "prompt_tokens": 7384,
+        "completion_tokens": 145,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q027",
+        "type": "fact",
+        "q": "7 日留存指的是第 7 天当天活跃，还是 7 天内任意一天活跃？",
+        "answer": "7 日留存指的是第 7 天当天活跃，即日历日 D+7，不是 7 天内任意一天活跃 [1][2]。\n\n依据：指标字典中 `retention_d7` 的定义是“首访日后第 7 天仍活跃的用户占比”，口径注意明确写明“是同日历日 D+7，不是「7 天内任意一天活跃」”[2]。常见问题中也说明，本项目统一用 D+7 当天口径，需要“7 天内”时会显式写成 `retention_7d_cum`，不叫留存 [1]。查询模板同样要求用 `date(d0, '+7 day')` 精确到天，并指出“7 日内活跃”的口径数值通常高 30% 以上 [3][4]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "ok": true,
+        "ms": 29499,
+        "calls": 3,
+        "prompt_tokens": 7028,
+        "completion_tokens": 243,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q028",
+        "type": "fact",
+        "q": "会话是按多长时间无操作切分的？",
+        "answer": "会话按 30 分钟无操作切分 [1]。\n\n依据：指标字典中「会话数（`session_cnt`）」的定义为“30 分钟无操作切分后的会话条数”，并注明切分阈值为 30 分钟、不可与其他系统直接对比 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 32202,
+        "calls": 3,
+        "prompt_tokens": 5515,
+        "completion_tokens": 126,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q029",
+        "type": "fact",
+        "q": "渠道 ROI 排名对样本量有什么门槛？",
+        "answer": "渠道 ROI 排名要求样本不少于 100 单，低于这个门槛的渠道不参与排名 [5]。这样设置是因为样本太小时，一单退款就可能让 ROI 从 3.2 跳到 1.1 [5]。此外，ROI 只对 `is_paid=1` 的付费渠道计算，自然流量没有成本分母、ROI 无定义，不应进入排名 [3][4][5]。",
+        "refused": false,
+        "citations": [
+          5,
+          3,
+          4
+        ],
+        "ok": true,
+        "ms": 28489,
+        "calls": 3,
+        "prompt_tokens": 7379,
+        "completion_tokens": 173,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q030",
+        "type": "fact",
+        "q": "ltv_30d 的观察窗口是多少天？",
+        "answer": "ltv_30d 的观察窗口是 30 天，即新客在首单后 30 天内的累计净 GMV [1]。需要注意这是 30 天窗口而非全生命周期，且需满窗 cohort 才能计算 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 35050,
+        "calls": 3,
+        "prompt_tokens": 7190,
+        "completion_tokens": 121,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q031",
+        "type": "fact",
+        "q": "折扣深度的分母是哪个字段？",
+        "answer": "折扣深度的分母是 `list_amount`（原价金额），且该分母不含运费。[1]\n\n依据：折扣深度的公式为 `SUM(discount_amount) / SUM(list_amount)`，口径注意中明确“分母不含运费”。[1]",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 30442,
+        "calls": 3,
+        "prompt_tokens": 7619,
+        "completion_tokens": 106,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q032",
+        "type": "fact",
+        "q": "付费转化率 pay_rate 的分子和分母分别是什么？",
+        "answer": "付费转化率的分子是付费用户数，分母是活跃用户数 [1]。\n\n依据如下：\n- 定义上，付费转化率 = 付费用户数 / 活跃用户数，公式为 `paid_user_cnt / dau_uv`，单位是 % [1]。\n- 分子付费用户数（`paid_user_cnt`）指去重的下单用户数，统计口径为 `COUNT(DISTINCT user_id) WHERE status <> 'closed'` [1]。\n- 分母活跃用户数对应 `dau_uv`，即当日有曝光或点击事件的去重设备数，按 `device_id` 去重 [1]。\n- 口径注意：分母的活跃口径需与报表一致（device_id 去重）[1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 32080,
+        "calls": 3,
+        "prompt_tokens": 8050,
+        "completion_tokens": 215,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q033",
+        "type": "fact",
+        "q": "复购率的定义里，下单次数要达到几次才算复购？",
+        "answer": "复购率要求统计期内下单次数达到 **2 次及以上** 才算复购 [3]。\n\n依据：复购率（`repurchase_rate`）的定义是“统计期内下单 ≥2 次的用户占付费用户比例”，公式为 `cnt(order>=2) / paid_user_cnt` [3]。",
+        "refused": false,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 27729,
+        "calls": 3,
+        "prompt_tokens": 7826,
+        "completion_tokens": 124,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q034",
+        "type": "fact",
+        "q": "MAU 能不能由每天的 DAU 相加得到？",
+        "answer": "不能。MAU 必须重新做去重统计，不能由日粒度数据汇总推导出来 [2]。\n\n依据是：把 30 天的 DAU 直接相加，得到的是“人次”而不是“人数”，因为同一个用户在一个月内可能被重复计入多次，这样算通常会高估 4 到 6 倍 [2]。指标字典里也明确写了，MAU 不能由 DAU 相加或取平均得到 [1]。",
+        "refused": false,
+        "citations": [
+          2,
+          1
+        ],
+        "ok": true,
+        "ms": 45175,
+        "calls": 3,
+        "prompt_tokens": 7089,
+        "completion_tokens": 152,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q035",
+        "type": "fact",
+        "q": "本项目的指标字典一共声明了多少个指标？",
+        "answer": "指标字典一共声明了 32 个指标 [1]。\n\n依据：该文件明确写明“本文件声明 32 个指标，是 `metrics.yml` 的人读版本” [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 17345,
+        "calls": 3,
+        "prompt_tokens": 7326,
+        "completion_tokens": 98,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q036",
+        "type": "fact",
+        "q": "order_line_cnt 和 order_cnt 大概差多少倍？",
+        "answer": "两者相差约 1.28 倍，订单行数比订单数高约 28% [1][2][3]。\n\n依据：`order_cnt` 按 `COUNT(DISTINCT order_id)` 去重，`order_line_cnt` 按 `COUNT(*)` 不去重，差的那部分就是“一单多书” [1][2]。实测直接 `COUNT(*)` 得到的订单行数比真实订单数高 28% [3]，客单价若用行数做分母，数值会差 28% [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 24115,
+        "calls": 3,
+        "prompt_tokens": 7445,
+        "completion_tokens": 171,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q037",
+        "type": "fact",
+        "q": "SQL 安全规则一共有几条？",
+        "answer": "SQL 安全规则一共 18 条 [1]。\n\n依据：文档明确说明执行链路中包含“18 条规则校验”这一步，并设有“一、18 条规则”章节，以 G01 至 G18 逐条列出 [1][5]。",
+        "refused": false,
+        "citations": [
+          1,
+          5
+        ],
+        "ok": true,
+        "ms": 29841,
+        "calls": 3,
+        "prompt_tokens": 7433,
+        "completion_tokens": 122,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q038",
+        "type": "fact",
+        "q": "表名不在表卡白名单里时返回哪个错误码？",
+        "answer": "表名不在表卡白名单里时返回错误码 `E1031` [1][3]。\n\n依据：安全规则 G03 要求 AST 中每张表都要能在 tables.yml 找到同名条目，否则拒绝，拒绝码为 `E1031` [1]；错误码表中 `E1031` 对应“未知表名”，即 SQL 引用了 tables.yml 未声明的表 [3]。此外，子查询里的表名同样走 G03 检查，命中时也是 `E1031` [1][6]。",
+        "refused": false,
+        "citations": [
+          1,
+          3,
+          6
+        ],
+        "ok": true,
+        "ms": 25407,
+        "calls": 3,
+        "prompt_tokens": 7344,
+        "completion_tokens": 234,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q039",
+        "type": "fact",
+        "q": "为什么不用正则做 SQL 安全校验？",
+        "answer": "**结论：正则做 SQL 安全校验一定会被绕过，而且思路本身就不对——正则是在“找坏词”，安全做法应该是“只放行好结构”。[1][2]**\n\n依据如下：\n\n- 正则被绕过的具体手法包括：注释拆词（如 DR/**/OP）、大小写变化、Unicode 空白、函数嵌套。[1][2]\n- 更根本的问题在于方向：正则做的是“找坏词”的黑名单匹配，而安全的做法应该是“只放行好结构”。[1]\n- 正确做法是先把 SQL 解析成 AST，再按节点类型白名单放行；AST 是唯一可靠的方式。[1][2]\n- 项目把安全边界放在解析层而不是提示词层：提示词可以要求“只写 SELECT”，但要求不是约束，`sqlglot` 解析出来的 AST 才是约束。[5]\n- 项目也没有选用 `sqlparse`，因为它只做分词、不做语义校验。[2]",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          5
+        ],
+        "ok": true,
+        "ms": 33023,
+        "calls": 3,
+        "prompt_tokens": 7442,
+        "completion_tokens": 297,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q040",
+        "type": "fact",
+        "q": "访问系统表被拒绝时返回什么码？",
+        "answer": "访问系统表被拒绝时返回 `E1064` [1]。\n\n依据：G05 规定表名命中 sqlite_master / sqlite_sequence / pragma_* 即拒绝，拒绝码为 `E1064` [1]。另外 G06 禁止 PRAGMA 语句，同样使用 `E1064` [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 28195,
+        "calls": 3,
+        "prompt_tokens": 7259,
+        "completion_tokens": 175,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q041",
+        "type": "fact",
+        "q": "扫描行数的估算上限是多少？",
+        "answer": "扫描行数的估算上限是 500 万行，超过即拒绝执行 [1][2]。\n\n依据：G11 规则规定，EXPLAIN QUERY PLAN 估算扫描行超过 500 万即拒绝，对应错误码 E1072 [1]；错误码表中 E1072 的描述同样是“EXPLAIN 估算扫描超过 500 万行” [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 32010,
+        "calls": 3,
+        "prompt_tokens": 7688,
+        "completion_tokens": 152,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q042",
+        "type": "fact",
+        "q": "单条 SQL 的执行超时是多少秒？",
+        "answer": "单条 SQL 的执行超时是 15 秒 [1][2]。\n\n依据：G12 规则规定执行超时为 15 秒，通过 sqlite3 的 progress_handler 每 10ms 检查一次累计耗时，累计超过 15 秒即返回非零值中断查询，对应拒绝码 E1070 [1][2][3]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 31329,
+        "calls": 3,
+        "prompt_tokens": 6918,
+        "completion_tokens": 132,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q043",
+        "type": "fact",
+        "q": "超时检查的 progress_handler 回调间隔是多少？",
+        "answer": "超时检查的 `progress_handler` 回调间隔是每 10ms 一次 [1][2][3]。\n\n依据：文档中 G12 执行超时规则写明，用 sqlite3 的 `progress_handler` 每 10ms 检查一次累计耗时，累计超过 15 秒就返回非零值中断查询 [1][2][3]。文档还提到，10ms 这个频率是在 2 万行/秒的扫描速度下调出来的，再密会明显掉速 [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 29118,
+        "calls": 3,
+        "prompt_tokens": 7137,
+        "completion_tokens": 189,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q044",
+        "type": "fact",
+        "q": "结果集行数超过多少会被截断并报 E1071？",
+        "answer": "结果集返回行数超过 10,000 时会报 E1071 [3]。另外，结果列数超过 50 的查询也会被截断并提示，同样对应 E1071 [1][2]。",
+        "refused": false,
+        "citations": [
+          3,
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 30514,
+        "calls": 3,
+        "prompt_tokens": 7712,
+        "completion_tokens": 127,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q045",
+        "type": "fact",
+        "q": "SQL 执行的并发闸门默认值是多少？",
+        "answer": "SQL 执行的并发闸门默认值是 8 [1][2][4]。\n\n依据：版本变更记录中 v1.5.0 明确写有“SQL 执行加并发闸门（默认 8）”[1]；SQL 安全与沙箱文档说明并发用信号量控制、默认 8 个，并给出压测依据（8 并发下 p99 为 1.4s，16 并发劣化到 4.1s）[2]；限流与配额文档也把“服务 / 全局并发查询”的默认值列为 8，命中码为 E1042 [4]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          4
+        ],
+        "ok": true,
+        "ms": 23092,
+        "calls": 3,
+        "prompt_tokens": 6622,
+        "completion_tokens": 196,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q046",
+        "type": "fact",
+        "q": "哪两个列属于敏感列，一律不进结果集？",
+        "answer": "敏感列包括 user_phone、user_email 和 id_card，这三类一律不进结果集 [1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 22386,
+        "calls": 3,
+        "prompt_tokens": 7842,
+        "completion_tokens": 83,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q047",
+        "type": "fact",
+        "q": "E1052 表示什么问题？",
+        "answer": "E1052 表示上下文超长，HTTP 状态码为 500 [2]。触发条件是检索到的卡片加上问题合计超过 32k token [2]。处理建议是减少 top_k [2]。\n\n另外，排查该错误时建议先怀疑 top_k 而不是模型上下文窗口：32k 窗口下，一张表卡约 400 token，6 张卡加问题也就 3k，真正把上下文撑爆的往往是 few-shot 范例被整段拼进去；排查顺序为先看 top_k，再看 fewshots 的 tags 是否命中过多 [3]。",
+        "refused": false,
+        "citations": [
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 19985,
+        "calls": 3,
+        "prompt_tokens": 7188,
+        "completion_tokens": 192,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q048",
+        "type": "fact",
+        "q": "E1080 证据不足拒答，在接口上是按正常返回还是按错误返回？",
+        "answer": "E1080 在接口上按正常返回处理，不是错误。\n\n依据：它的 HTTP 状态是 200，`refused=true`，表示\"检索到的证据不足以回答\"，是产品的正确行为而不是故障 [1]。前端不应把它当异常弹红框，排行榜统计里它也不进错误率分母，而是进\"拒答率\" [1]。在码段划分中，1080-1081 也归为\"拒答（业务正常返回）\" [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 17378,
+        "calls": 3,
+        "prompt_tokens": 6061,
+        "completion_tokens": 195,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q049",
+        "type": "fact",
+        "q": "E1042 是什么错误？",
+        "answer": "E1042 是并发闸门已满的错误，HTTP 状态码为 429，触发条件是同时执行的查询数超过 max_concurrent_queries [1]。处理建议是串行执行或提高配额 [1]。该码属于限流与配额码段（E1040–E1042）[3]，在 v1.4.1 版本中随租户级限流与配额计量一起新增 [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          3,
+          2
+        ],
+        "ok": true,
+        "ms": 17149,
+        "calls": 3,
+        "prompt_tokens": 7819,
+        "completion_tokens": 162,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q050",
+        "type": "fact",
+        "q": "SQL 里出现分号分隔的多条语句，会返回哪个码？",
+        "answer": "会返回 E1062。\n\n依据：规则 G01 要求解析后 AST 里的语句数量必须为 1，出现分号分隔的多条语句会被直接拒绝，对应拒绝码 E1062 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 15287,
+        "calls": 3,
+        "prompt_tokens": 7713,
+        "completion_tokens": 130,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q051",
+        "type": "fact",
+        "q": "E1071 和 E1072 的区别是什么？",
+        "answer": "E1071 和 E1072 分别对应两条不同的 SQL 安全规则：E1071 用于“禁止 LIMIT 缺失的明细查询”和“结果列数上限 50”，E1072 用于“扫描行数估算上限”[1]。\n\n具体区别如下：\n\n- **E1071**：对应 G10 规则，对无聚合且无 LIMIT 的查询自动追加 LIMIT 1000；同时对应 G16 规则，列数超过 50 的查询被截断并提示[1]。\n- **E1072**：对应 G11 规则，EXPLAIN QUERY PLAN 估算扫描行超过 500 万即拒绝[1]。版本记录也确认“扫描行数上限 500 万，超限返回 E1072”[2]。\n\n简言之，E1071 管的是查询结果的行数/列数形态（缺 LIMIT、列太多），E1072 管的是扫描规模（估算扫描行超 500 万）[1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": false,
+        "ms": 24614,
+        "calls": 3,
+        "prompt_tokens": 7804,
+        "completion_tokens": 322,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q052",
+        "type": "fact",
+        "q": "请求来源不在白名单时返回哪个错误码？",
+        "answer": "请求来源不在白名单时返回错误码 **E1012**，HTTP 状态码为 403。[1]\n\n依据：该错误码的含义是“请求来源不在白名单”，触发条件是 Origin 不在 allowed_origins 中，处理建议为配置 allowed_origins。[1]",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 14099,
+        "calls": 3,
+        "prompt_tokens": 7201,
+        "completion_tokens": 135,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q053",
+        "type": "fact",
+        "q": "语义层 YAML 校验失败返回什么码？",
+        "answer": "语义层 YAML 校验失败返回 **E1030**（HTTP 422），含义是“语义层校验失败”，触发条件是 YAML 结构不满足 schema，处理建议是按错误提示修字段 [2][5]。\n\n补充两点相关行为：热重载时若校验失败，会保留旧配置并返回 E1030，不会导致服务起不来 [1][4]；运维上遇到 SQL 全被 E1061 拒绝时，也可能是热重载失败但进程没报错，此时 reload 返回 E1030、旧配置仍在用，需修 YAML 后重载 [6]。",
+        "refused": false,
+        "citations": [
+          2,
+          5,
+          1,
+          4,
+          6
+        ],
+        "ok": true,
+        "ms": 17562,
+        "calls": 3,
+        "prompt_tokens": 7941,
+        "completion_tokens": 204,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q054",
+        "type": "fact",
+        "q": "sqlglot 无法解析生成的 SQL 时返回什么码？",
+        "answer": "返回 E1060（HTTP 400，SQL 解析失败）[2][4]。\n\n依据：错误码对照表中 E1060 的含义为“SQL 解析失败”，触发条件是 sqlglot 无法解析生成的 SQL，处理建议是重新生成、最多 3 次 [2][4]。执行链路中解析（AST）这一步失败也标注为 E1060 [1]。",
+        "refused": false,
+        "citations": [
+          2,
+          4,
+          1
+        ],
+        "ok": true,
+        "ms": 15363,
+        "calls": 3,
+        "prompt_tokens": 7809,
+        "completion_tokens": 165,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q055",
+        "type": "fact",
+        "q": "日调用额度用尽对应哪个错误码？",
+        "answer": "对应错误码是 **E1041**，HTTP 状态码为 429。[1][2]\n\n依据：该码的含义为“日调用额度用尽”，触发条件是 token 日配额耗尽，处理建议为次日重置或申请提额。[1] 它属于限流与配额码段（1040-1042）。[2] 另外，收到 E1041 时不要重试，等到次日 0 点即可。[4]",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          4
+        ],
+        "ok": true,
+        "ms": 15938,
+        "calls": 3,
+        "prompt_tokens": 7824,
+        "completion_tokens": 173,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q056",
+        "type": "fact",
+        "q": "数据库只读快照缺失或损坏时返回什么码？",
+        "answer": "数据库只读快照缺失或损坏时返回 **E1090**，HTTP 状态码为 **503**，处理方式是重新导出快照 [1]。就绪探针 `/readyz` 在快照缺失时也会返回 503 + E1090 [2][3]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 17947,
+        "calls": 3,
+        "prompt_tokens": 7097,
+        "completion_tokens": 142,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q057",
+        "type": "fact",
+        "q": "/readyz 会检查哪两样东西？",
+        "answer": "/readyz 会检查快照与语义层 [1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": false,
+        "ms": 15434,
+        "calls": 3,
+        "prompt_tokens": 7479,
+        "completion_tokens": 64,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q058",
+        "type": "fact",
+        "q": "citations 事件最多返回几条引用？",
+        "answer": "citations 事件最多返回 5 条引用 [6]。\n\n依据：SSE 事件序列表说明，`citations` 事件在答案定稿后发一条，最多 5 条 [6]。",
+        "refused": false,
+        "citations": [
+          6
+        ],
+        "ok": true,
+        "ms": 9306,
+        "calls": 3,
+        "prompt_tokens": 7525,
+        "completion_tokens": 116,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q059",
+        "type": "fact",
+        "q": "SSE 的保活 ping 间隔是多少秒？",
+        "answer": "SSE 流式问答接口每 15 秒发送一次 ping 保活 [2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 17109,
+        "calls": 3,
+        "prompt_tokens": 8085,
+        "completion_tokens": 83,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q060",
+        "type": "fact",
+        "q": "naive 模式的 p50 延迟是多少秒？",
+        "answer": "naive 模式在 8 并发下 p50 延迟为 1.1s，在 32 并发下为 4.2s [1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 21282,
+        "calls": 3,
+        "prompt_tokens": 6841,
+        "completion_tokens": 99,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q061",
+        "type": "fact",
+        "q": "SSE 的 done 事件里，用哪个字段表示本次成本（人民币）？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 21488,
+        "calls": 2,
+        "prompt_tokens": 3707,
+        "completion_tokens": 51,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q062",
+        "type": "fact",
+        "q": "/v1/ask 的 question 参数长度上限是多少字符？",
+        "answer": "`/v1/ask` 的 `question` 参数为必填，长度上限是 500 字 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 15332,
+        "calls": 3,
+        "prompt_tokens": 7633,
+        "completion_tokens": 86,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q063",
+        "type": "fact",
+        "q": "MCP 里用来查询指标口径的工具叫什么？",
+        "answer": "MCP 里用来查询指标口径的工具叫 `describe_metric` [1][3]。\n\n依据：接入指南的 MCP 工具表中，`describe_metric` 的用途是“查一个指标的口径”，典型调用场景是模型需要确认“GMV 含不含退款” [1][3]。",
+        "refused": false,
+        "citations": [
+          1,
+          3
+        ],
+        "ok": true,
+        "ms": 13723,
+        "calls": 3,
+        "prompt_tokens": 6792,
+        "completion_tokens": 141,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q064",
+        "type": "fact",
+        "q": "MCP Server 用的是哪种传输方式？",
+        "answer": "MCP Server 使用 stdio 传输方式 [1][2][3]。\n\n依据：接入指南中启动 MCP 服务的命令为 `python -m app.mcp_server --transport stdio` [1]；版本记录显示 MCP Server 首版即采用 stdio JSON-RPC 2.0 手写实现 [2]；架构文档也将接入层的 MCP Server 标注为 stdio JSON-RPC [3]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 18599,
+        "calls": 3,
+        "prompt_tokens": 7952,
+        "completion_tokens": 142,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q065",
+        "type": "fact",
+        "q": "反馈接口 /v1/feedback 的 verdict 支持哪几种取值？",
+        "answer": "`verdict` 支持三种取值：`correct`、`wrong`、`partial`，分别对应“对/错/部分对” [1][2]。\n\n依据：`POST /v1/feedback` 的参数中，`verdict` 的取值限定为 `correct|wrong|partial` [1][3]；该端点用于提交答案反馈（对/错/部分对），鉴权方式为 Bearer [1][2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 15064,
+        "calls": 3,
+        "prompt_tokens": 8060,
+        "completion_tokens": 148,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q066",
+        "type": "fact",
+        "q": "调试参数 debug=true 会额外返回什么？",
+        "answer": "调试参数 `debug=true` 会额外返回四样内容：完整的检索证据、生成的 SQL、校验结果和判定理由 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 19459,
+        "calls": 3,
+        "prompt_tokens": 6343,
+        "completion_tokens": 94,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q067",
+        "type": "fact",
+        "q": "free 套餐的每日 token 上限是多少？",
+        "answer": "free 套餐的每日 token 上限是 200,000 [1]。该套餐同时标注为试用租户、7 天有效 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 12148,
+        "calls": 3,
+        "prompt_tokens": 7876,
+        "completion_tokens": 104,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q068",
+        "type": "fact",
+        "q": "business 套餐的 QPS 配额是多少？",
+        "answer": "business 套餐的 QPS 配额是 30 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 17573,
+        "calls": 3,
+        "prompt_tokens": 7136,
+        "completion_tokens": 77,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q069",
+        "type": "fact",
+        "q": "一次 full 模式的问答，典型成本是多少元？",
+        "answer": "一次 full 模式的问答，典型成本约为 0.026 元 [1]。\n\n依据：文档给出的成本对比中，`full` 模式约 0.026 元，`mix_rr` 约 0.019 元，`naive` 约 0.004 元 [1]。差距来自链路长度，full 要检索、生成、自检、判定四步，naive 只生成一次 [1]。该数字按 deepseek-chat 的低峰单价计算，高峰会贵一倍左右 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 16693,
+        "calls": 3,
+        "prompt_tokens": 7150,
+        "completion_tokens": 201,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q070",
+        "type": "fact",
+        "q": "6 万字语料建一次索引大约花多少钱？",
+        "answer": "6 万字规模的语料建一次索引约 0.9 元 [3]。",
+        "refused": false,
+        "citations": [
+          3
+        ],
+        "ok": true,
+        "ms": 18376,
+        "calls": 3,
+        "prompt_tokens": 6507,
+        "completion_tokens": 78,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q071",
+        "type": "fact",
+        "q": "E1042 响应头里的 Retry-After 单位是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 23202,
+        "calls": 2,
+        "prompt_tokens": 3357,
+        "completion_tokens": 49,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q072",
+        "type": "fact",
+        "q": "输入 token 的单价大约是输出 token 的多少？",
+        "answer": "输入 token 的单价约为输出 token 的四分之一 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 28410,
+        "calls": 3,
+        "prompt_tokens": 7336,
+        "completion_tokens": 74,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q073",
+        "type": "fact",
+        "q": "容器镜像大约多大？",
+        "answer": "容器镜像约 1.2 GB [2]。其中占大头的是 onnxruntime 和 embedding 模型，bge-small-zh 约 90 MB [2]。如果改用云端 embedding，可以省掉 onnxruntime，镜像能降到 400 MB 左右，代价是每次查询多一次网络往返和 embedding 费用 [2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 24381,
+        "calls": 3,
+        "prompt_tokens": 7835,
+        "completion_tokens": 133,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q074",
+        "type": "fact",
+        "q": "索引期的内存峰值大约是多少？",
+        "answer": "索引期的内存峰值约为 1.4 GB [1]。\n\n依据：文档的内存表中列出“峰值（索引期）”为 1.4 GB [1]；该峰值主要来自实体关系的图结构反序列化，而非向量矩阵 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 21609,
+        "calls": 3,
+        "prompt_tokens": 7066,
+        "completion_tokens": 111,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q075",
+        "type": "fact",
+        "q": "trace 数据保留多少天？",
+        "answer": "trace 数据保留 7 天 [1][2][3]。\n\n依据：接口文档在说明 trace 时明确写了保留 7 天 [1]；权限文档也提到用户删除会话不影响 trace，trace 仍保留 7 天（审计日志保留 90 天）[2]；常见问题中同样说明 trace 单独落在 `traces.sqlite`，保留 7 天 [3]。",
+        "refused": false,
+        "citations": [
+          1,
+          2,
+          3
+        ],
+        "ok": true,
+        "ms": 27494,
+        "calls": 3,
+        "prompt_tokens": 5965,
+        "completion_tokens": 138,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q076",
+        "type": "fact",
+        "q": "审计日志保留多少天？",
+        "answer": "审计日志保留 90 天 [1]。\n\n依据：文档说明“删除会话不等于删除 trace”，用户可删除自己的会话，但 trace 保留 7 天、审计日志保留 90 天，这是出于合规要求——用户可以撤回自己的对话内容，但系统必须保留“发生过这次访问”的记录 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 28854,
+        "calls": 3,
+        "prompt_tokens": 7290,
+        "completion_tokens": 137,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q077",
+        "type": "fact",
+        "q": "并发压测的性能拐点出现在几并发？",
+        "answer": "性能拐点出现在 8 并发 [2]。到 8 并发后，QPS 不再随并发上升，只是排队变长、超时变多 [2]。瓶颈不在 CPU 或数据库，而在上游 LLM 的连接数限制和本地信号量闸门 [2]。",
+        "refused": false,
+        "citations": [
+          2
+        ],
+        "ok": true,
+        "ms": 29000,
+        "calls": 3,
+        "prompt_tokens": 6720,
+        "completion_tokens": 137,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q078",
+        "type": "fact",
+        "q": "送进重排的文本被截断到多少字符？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 41845,
+        "calls": 2,
+        "prompt_tokens": 4006,
+        "completion_tokens": 45,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q079",
+        "type": "fact",
+        "q": "五个角色里，哪个角色不能提问？",
+        "answer": "不能提问的是审计员（`auditor`）[1]。\n\n依据：权限矩阵中，问答（/v1/ask）和流式问答（/v1/ask/stream）两项，`auditor` 均为 N，其余四个角色均为 Y [1]。文档也明确说明审计员只有读 trace 和审计日志的权限，不能提问是刻意设计，避免其 trace 与被审计对象混在一起、导致审计链断裂 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 37735,
+        "calls": 3,
+        "prompt_tokens": 7323,
+        "completion_tokens": 165,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q080",
+        "type": "fact",
+        "q": "viewer 角色被明确禁止的操作是什么？",
+        "answer": "viewer 角色被明确禁止的操作是导出 [1]。导出意味着数据离开系统边界，这是唯一一个按角色硬切的权限 [1]。如果确实需要导出，要走 admin 临时授权，且有有效期和审计记录 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 30094,
+        "calls": 3,
+        "prompt_tokens": 7354,
+        "completion_tokens": 130,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q081",
+        "type": "fact",
+        "q": "访问令牌的有效期是多久？",
+        "answer": "访问令牌有效期为 8 小时，刷新令牌有效期为 30 天 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 27820,
+        "calls": 3,
+        "prompt_tokens": 7150,
+        "completion_tokens": 73,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q082",
+        "type": "fact",
+        "q": "租户隔离依赖几样东西？",
+        "answer": "租户隔离依赖三样东西，缺一不可 [1]。\n\n1. **数据行级**：所有查询自动注入 `tenant_id = :current`，注入在 Repo 层做，不在 SQL 生成层做 [1]。\n2. **表名前缀**：跨租户的表带 `tenant_` 前缀，安全规则 G15 会拦截 [1][2]。\n3. **配额独立**：限流计数按 `(tenant_id, window)` 分桶，一个租户打满不影响其他租户 [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 33650,
+        "calls": 3,
+        "prompt_tokens": 7514,
+        "completion_tokens": 271,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q083",
+        "type": "fact",
+        "q": "30 条数据质量规则分成哪两个级别？",
+        "answer": "数据质量规则分为「阻塞」和「告警」两个级别 [1]。\n\n依据：文档共列出 30 条规则，按这两级划分；阻塞级当天数据不进仓库，告警级数据进仓库但会打标 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 35184,
+        "calls": 3,
+        "prompt_tokens": 6818,
+        "completion_tokens": 111,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q084",
+        "type": "fact",
+        "q": "Q29 校验的是哪两个指标之间的大小关系？",
+        "answer": "Q29 校验的是 UV 与 PV 之间的大小关系，要求 UV ≤ PV [1]。\n\n依据：该规则按日校验，级别为阻塞，理由是反过来一定是去重键错了 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 22438,
+        "calls": 3,
+        "prompt_tokens": 6818,
+        "completion_tokens": 101,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q085",
+        "type": "fact",
+        "q": "校验 rating_avg 一致性时抽样多少本书？",
+        "answer": "校验 rating_avg 一致性时抽样 100 本书。[1]\n\n依据：Q14 规则要求 dim_book.rating_avg 与明细一致，校验方式是抽样 100 本对比 AVG(score)，触发级别为告警。[1]",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 22037,
+        "calls": 3,
+        "prompt_tokens": 7755,
+        "completion_tokens": 145,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q086",
+        "type": "fact",
+        "q": "GMV 日环比突变的告警阈值是多少？",
+        "answer": "GMV 日环比突变的告警阈值是 50%，即 |今日-昨日|/昨日 > 50% 时触发告警 [1][3]。\n\n补充说明：该阈值是经验值，没有统计依据，作用只是提醒人看一眼，并非判定数据错误，因此不应把它当作硬门禁 [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          3
+        ],
+        "ok": true,
+        "ms": 16613,
+        "calls": 3,
+        "prompt_tokens": 6783,
+        "completion_tokens": 156,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q087",
+        "type": "fact",
+        "q": "在 30 道可答题的评测里，1 道题值多少个百分点？",
+        "answer": "在 30 道可答题的评测里，1 道题值 3.3 个百分点 [1]。这个粒度太粗，所以 90% 和 86.7% 的差距其实只有 1 道题，结论要谨慎表述；扩到 120 题后 1 题才降到 0.83 个百分点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 25461,
+        "calls": 3,
+        "prompt_tokens": 7210,
+        "completion_tokens": 143,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q088",
+        "type": "fact",
+        "q": "扩到 120 题后，1 道题大约值多少个百分点？",
+        "answer": "扩到 120 题后，1 道题约值 0.83 个百分点 [1]。\n\n依据：文档说明在 30 道可答题的规模下，1 题 = 3.3 个百分点，粒度太粗；扩到 120 题后，1 题才降到 0.83 个百分点 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 29120,
+        "calls": 3,
+        "prompt_tokens": 6936,
+        "completion_tokens": 195,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q089",
+        "type": "fact",
+        "q": "为什么不用 LLM 当评测裁判？",
+        "answer": "不用 LLM 当裁判，是因为它不稳定、不可复现，而且裁判本身有偏好。[1][2]\n\n具体来说：同一份答案两次判定可能不同；裁判会偏向更长、更自信或更啰嗦的答案。[1][2] 因此它只适合做探索性分析，不适合做回归测试。[1] 相比之下，字符串关键词判定虽然粗糙，但结果是确定的，同一份答案永远得同一个分。[2] 文档给出的正确做法是确定性判定，比如关键词、结果集比对；如果要测语义相似度，就单独做一个指标并标注它是近似的。[1]",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 26169,
+        "calls": 3,
+        "prompt_tokens": 7603,
+        "completion_tokens": 209,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q090",
+        "type": "fact",
+        "q": "mix 配置的分数为什么反而低于 naive？",
+        "answer": "`mix` 比 `naive` 低，是因为检索带进来的干扰块让模型选错了指标 [1]。\n\n具体分数上，`naive` 为 80.0%、`mix` 为 76.7% [1]。另外，这一现象对模型敏感：`mix` 比 `naive` 差这个现象在小模型上不出现 [2]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 28450,
+        "calls": 3,
+        "prompt_tokens": 6465,
+        "completion_tokens": 148,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q091",
+        "type": "fact",
+        "q": "判定器改成「先摘录再判定」后，误拒率从 20% 降到了多少？",
+        "answer": "误拒率从 20% 降到了 0% [1][2]。\n\n依据：判定器改为「先摘录再判定」后，误拒率由 20% 降至 0% [1][2]。其做法是要求模型先从证据中逐字摘录一句支撑回答的原文，再判定证据是否充分；摘不出来就输出 `NONE`，强制走拒答 [1]。",
+        "refused": false,
+        "citations": [
+          1,
+          2
+        ],
+        "ok": true,
+        "ms": 23731,
+        "calls": 3,
+        "prompt_tokens": 6297,
+        "completion_tokens": 152,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q092",
+        "type": "fact",
+        "q": "评测主指标 EX 的全称含义是什么？",
+        "answer": "EX 的全称是 exact match by result set，含义是“结果集完全一致的题目占比”，并且它是本项目的主指标 [1]。",
+        "refused": false,
+        "citations": [
+          1
+        ],
+        "ok": true,
+        "ms": 37015,
+        "calls": 3,
+        "prompt_tokens": 7451,
+        "completion_tokens": 89,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q093",
+        "type": "fact",
+        "q": "整个项目一共做了 10 项选型，其中语义检索用的是什么方案？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": false,
+        "ms": 33620,
+        "calls": 2,
+        "prompt_tokens": 3718,
+        "completion_tokens": 48,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q094",
+        "type": "fact",
+        "q": "MCP 协议手写实现大约多少行代码？",
+        "answer": "约 200 行。[1][5]\n\n依据：文档在 Agent 接入选型中说明，手写 MCP（JSON-RPC 2.0 over stdio）的协议只有四个方法，自己实现约 200 行，且零新增依赖。[1][5]",
+        "refused": false,
+        "citations": [
+          1,
+          5
+        ],
+        "ok": true,
+        "ms": 33661,
+        "calls": 3,
+        "prompt_tokens": 7853,
+        "completion_tokens": 139,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q095",
+        "type": "refuse",
+        "q": "你们和市面上的 Text2SQL 商业产品相比，准确率高多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 31215,
+        "calls": 2,
+        "prompt_tokens": 3352,
+        "completion_tokens": 57,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q096",
+        "type": "refuse",
+        "q": "2027 年第一季度打算上线哪些新功能？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 19707,
+        "calls": 2,
+        "prompt_tokens": 4265,
+        "completion_tokens": 46,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q097",
+        "type": "refuse",
+        "q": "这个项目组目前有几个后端工程师？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 35166,
+        "calls": 2,
+        "prompt_tokens": 4193,
+        "completion_tokens": 42,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q098",
+        "type": "refuse",
+        "q": "数据分析培训生这个岗位的转正薪资是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 31984,
+        "calls": 2,
+        "prompt_tokens": 3983,
+        "completion_tokens": 47,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q099",
+        "type": "refuse",
+        "q": "用户 88213 上个月买了哪几本书？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 27560,
+        "calls": 2,
+        "prompt_tokens": 4181,
+        "completion_tokens": 48,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q100",
+        "type": "refuse",
+        "q": "接入 Oracle 时需要改哪几个配置文件？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 36465,
+        "calls": 2,
+        "prompt_tokens": 4198,
+        "completion_tokens": 37,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q101",
+        "type": "refuse",
+        "q": "和最大的一家出版社签的年度合同金额是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 35157,
+        "calls": 2,
+        "prompt_tokens": 4003,
+        "completion_tokens": 43,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q102",
+        "type": "refuse",
+        "q": "公司去年全年的营业收入是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 33004,
+        "calls": 2,
+        "prompt_tokens": 3797,
+        "completion_tokens": 42,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q103",
+        "type": "refuse",
+        "q": "目前付费客户里有哪些是上市公司？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 21286,
+        "calls": 2,
+        "prompt_tokens": 3797,
+        "completion_tokens": 36,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q104",
+        "type": "refuse",
+        "q": "这个项目用的模型是在什么数据上预训练的？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 36428,
+        "calls": 2,
+        "prompt_tokens": 3783,
+        "completion_tokens": 40,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q105",
+        "type": "refuse",
+        "q": "deepseek-chat 的参数量是多少亿？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 35818,
+        "calls": 2,
+        "prompt_tokens": 3993,
+        "completion_tokens": 45,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q106",
+        "type": "refuse",
+        "q": "服务部署在哪个城市的哪个可用区？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 33327,
+        "calls": 2,
+        "prompt_tokens": 4038,
+        "completion_tokens": 38,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q107",
+        "type": "refuse",
+        "q": "你们产品的 NPS 评分是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 39093,
+        "calls": 2,
+        "prompt_tokens": 3855,
+        "completion_tokens": 49,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q108",
+        "type": "refuse",
+        "q": "服务不可用时按合同要赔多少钱？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 20733,
+        "calls": 2,
+        "prompt_tokens": 4030,
+        "completion_tokens": 52,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q109",
+        "type": "refuse",
+        "q": "灾备切换的 RTO 和 RPO 分别是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 43198,
+        "calls": 2,
+        "prompt_tokens": 4086,
+        "completion_tokens": 47,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q110",
+        "type": "refuse",
+        "q": "商业授权一年的费用是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 31767,
+        "calls": 2,
+        "prompt_tokens": 4176,
+        "completion_tokens": 38,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q111",
+        "type": "refuse",
+        "q": "开具增值税专用发票需要提供哪些材料？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 39464,
+        "calls": 2,
+        "prompt_tokens": 3423,
+        "completion_tokens": 50,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q112",
+        "type": "refuse",
+        "q": "2026 年 5 月 20 日全站 GMV 的具体数值是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 39563,
+        "calls": 2,
+        "prompt_tokens": 4025,
+        "completion_tokens": 49,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q113",
+        "type": "refuse",
+        "q": "book_id 为 10023 的那本书叫什么名字？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 31964,
+        "calls": 2,
+        "prompt_tokens": 4284,
+        "completion_tokens": 39,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q114",
+        "type": "refuse",
+        "q": "字节渠道在 5 月实际花了多少投放费用？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 30174,
+        "calls": 2,
+        "prompt_tokens": 3965,
+        "completion_tokens": 53,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q115",
+        "type": "refuse",
+        "q": "这个岗位面试一共几轮，每轮考什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 38262,
+        "calls": 2,
+        "prompt_tokens": 4248,
+        "completion_tokens": 50,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q116",
+        "type": "refuse",
+        "q": "团队平时在哪个办公区上班，几点打卡？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 35999,
+        "calls": 2,
+        "prompt_tokens": 3928,
+        "completion_tokens": 43,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q117",
+        "type": "refuse",
+        "q": "用户数据的跨境传输适用哪条法律条款？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 23551,
+        "calls": 2,
+        "prompt_tokens": 4000,
+        "completion_tokens": 54,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q118",
+        "type": "refuse",
+        "q": "在 32 核机器上单机能支撑多少 QPS？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 31744,
+        "calls": 2,
+        "prompt_tokens": 4002,
+        "completion_tokens": 48,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q119",
+        "type": "refuse",
+        "q": "tests 目录下一共有多少个测试文件？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 36847,
+        "calls": 2,
+        "prompt_tokens": 4009,
+        "completion_tokens": 39,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q120",
+        "type": "refuse",
+        "q": "v1.0 版本里被删掉的那个功能叫什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 28104,
+        "calls": 2,
+        "prompt_tokens": 4325,
+        "completion_tokens": 49,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q121",
+        "type": "refuse",
+        "q": "有没有和高校实验室做过联合研究？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 32169,
+        "calls": 2,
+        "prompt_tokens": 3454,
+        "completion_tokens": 39,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q122",
+        "type": "refuse",
+        "q": "行业平均的图书电商退款率是多少？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 18204,
+        "calls": 2,
+        "prompt_tokens": 4104,
+        "completion_tokens": 44,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q123",
+        "type": "refuse",
+        "q": "用户投诉后多久内必须回复？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 22909,
+        "calls": 2,
+        "prompt_tokens": 3785,
+        "completion_tokens": 41,
+        "n_chunks": 6
+      },
+      {
+        "id": "Q124",
+        "type": "refuse",
+        "q": "推荐的服务器 CPU 型号和主频是什么？",
+        "answer": "证据不足：文档中未提及相关内容。",
+        "refused": true,
+        "citations": [],
+        "ok": true,
+        "ms": 19542,
+        "calls": 2,
+        "prompt_tokens": 4206,
+        "completion_tokens": 48,
+        "n_chunks": 6
+      }
+    ]
+  }
+]

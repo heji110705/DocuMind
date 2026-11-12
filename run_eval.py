@@ -37,6 +37,7 @@ if hasattr(sys.stdout, "reconfigure"):
 ROOT = Path(__file__).parent
 
 from evalutil import cost_of, hit  # noqa: E402
+from llm_client import llm_func  # noqa: E402
 from query import DocuMind, is_refusal  # noqa: E402
 
 CONFIGS = [
@@ -68,6 +69,26 @@ async def run_config(dm: DocuMind, items: list[dict], name: str, kw: dict, conc:
                     "prompt_tokens": 0, "completion_tokens": 0, "n_chunks": 0,
                 })
                 print(f"  [timeout] {it['id']} {it['q'][:30]}", flush=True)
+                return
+            except Exception as e:  # noqa: BLE001
+                # 单题异常必须就地吞掉，否则一道题就把整组 124 题废掉。
+                #
+                # 这是实测踩出来的：`full` 组在冷启动下两次跑到 63/79 题时静默挂死——
+                # 进程 0% CPU（不是空转）、日志里没有 traceback、只留一句
+                # "Successfully finalized 12 storages"。原因是某一题抛了异常
+                # （上游 400 或 rerank 内部错误），asyncio.gather 直接把它抛出去，
+                # amain 的 finally 关掉索引，然后 asyncio.run 在退出时等一个
+                # 不可取消的任务，永久卡住。
+                # 结果就是：前 60 多题白跑，且看不出是哪一题出的问题。
+                # 现在改成记一行 [ERROR] 继续跑，异常本身留在 answer 里可追。
+                rows.append({
+                    "id": it["id"], "type": it["type"], "q": it["q"],
+                    "answer": f"[ERROR] {type(e).__name__}: {e}"[:400], "refused": True,
+                    "citations": [], "ok": False,
+                    "ms": int((time.perf_counter() - t0) * 1000), "calls": 0,
+                    "prompt_tokens": 0, "completion_tokens": 0, "n_chunks": 0,
+                })
+                print(f"  [error] {it['id']} {type(e).__name__}: {e}"[:160], flush=True)
                 return
             dt = int((time.perf_counter() - t0) * 1000)
             if it["type"] == "fact":
@@ -153,6 +174,17 @@ async def amain(args) -> None:
     items = spec["items"]
     if args.limit:
         items = items[: args.limit]
+
+    # 开跑前先探一次上游。理由很实际：一轮 124 题的重排评测要 25 分钟，
+    # 而"根本没网"和"网慢"在日志里长得几乎一样——实测踩过代理端口切换，
+    # 整轮 124 题全部 APIConnectionError，白跑 7 分钟才发现。
+    # 花 1 秒换掉 25 分钟的废跑，这笔账很划算。
+    try:
+        await asyncio.wait_for(llm_func("ping", max_tokens=1), timeout=30)
+        print("[preflight] 上游 LLM 可达", flush=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"[FAIL] 上游 LLM 不可达，先修网络再跑：{type(e).__name__}: {e}", flush=True)
+        return
 
     dm = await DocuMind(args.index_tag or args.tag, args.embed, use_rerank=True).open()
     results = []
