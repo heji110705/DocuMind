@@ -4,7 +4,7 @@
 "引用编号能不能对上 chunk 序号"和"裁判摘录有没有被当成锚点传下去"。
 """
 
-from query import build_answer_prompt
+from prompts import build_answer_prompt
 
 
 CHUNKS = [

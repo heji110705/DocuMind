@@ -1,0 +1,77 @@
+# 两个 job 的分工：`unit` 只装 requirements-fast.txt，几十秒跑完，任何提交都要绿；
+# `slow` 装完整依赖（lightrag + onnxruntime）再跑 OCR 与大文件用例，只在手动触发或
+# 每夜跑一次。分开的理由很简单：没人会为一个要等 6 分钟的检查去修红灯。
+
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 19 * * *"   # 每天 03:00（UTC+8）
+
+jobs:
+  unit:
+    name: 单元测试（不依赖 lightrag）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-fast.txt
+
+      # 前端是免构建的 ES 模块，但仍然需要语法检查：
+      # 拆模块之后最常见的错误是 import 路径写错，浏览器只会给一个 404。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 安装最小依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-fast.txt
+
+      - name: 单元测试（跳过标记为 slow 的用例）
+        run: python -m pytest -q -m "not slow"
+
+      # 依赖完整性必须单独跑一遍并且**在这里就失败**，而不是等到镜像构建时才发现。
+      # 这条检查查的是"requirements.txt 有没有漏包"，它和单测同源但目的不同：
+      # 单测证明代码逻辑对，它证明这套代码在干净环境里能被装起来。
+      # 只装 requirements-fast.txt 时一部分包不在环境里，工具会把它们标成"无法判断"
+      # 而不是"缺失"——见 tools/check_requirements.py 里 unknown 分支的注释。
+      - name: 依赖完整性（requirements 是否覆盖所有 import）
+        run: python -m tools.check_requirements
+
+  slow:
+    name: 完整依赖 + 慢测（OCR / PDF 版面）
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-ocr.txt
+
+      - name: 安装完整依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-ocr.txt
+
+      - name: 依赖完整性（完整依赖下的严格版）
+        run: python -m tools.check_requirements
+
+      - name: 慢测
+        run: python -m pytest -q -m "slow"
+        env:
+          # 指标与重排模型在测试里都是懒加载，这里只保证不会去连外网下载
+          HF_HUB_OFFLINE: "0"

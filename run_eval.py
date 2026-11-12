@@ -36,6 +36,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 ROOT = Path(__file__).parent
 
+from evalutil import cost_of, hit  # noqa: E402
 from query import DocuMind, is_refusal  # noqa: E402
 
 CONFIGS = [
@@ -45,18 +46,6 @@ CONFIGS = [
     ("mix_rr", dict(mode="mix", rerank=True, guard=False)),
     ("full", dict(mode="mix", rerank=True, guard=True)),
 ]
-
-
-def hit(text: str, groups: list[list[str]]) -> bool:
-    if not groups:
-        return True
-    return all(any(alt in text for alt in g) for g in groups)
-
-
-def cost_of(pin: int, pout: int) -> float:
-    pi = float(os.environ.get("PRICE_IN_PER_M", "1.07"))
-    po = float(os.environ.get("PRICE_OUT_PER_M", "4.29"))
-    return pin / 1e6 * pi + pout / 1e6 * po
 
 
 async def run_config(dm: DocuMind, items: list[dict], name: str, kw: dict, conc: int) -> dict:

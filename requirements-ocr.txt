@@ -1,0 +1,7 @@
+# 可选：扫描件 OCR。不装也能跑，只是扫描件会返回空正文并给出提示。
+#
+# 选 rapidocr 而不是 tesseract：纯 pip 安装、自带中英文模型、不需要系统包，
+# 容器镜像里少一层 apt，也不会因为发行版缺语言包导致中文全认成方块。
+rapidocr-onnxruntime==1.2.3
+# 内部用 PIL 读图（tesseract 后端也用它）
+pillow==13.0.0

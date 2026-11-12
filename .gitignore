@@ -24,4 +24,13 @@ data/*_v1.json
 # 消融逐题明细：只留生产那套，方便别人核对 README 里的表格
 data/eval_*.json
 data/eval_*.md
+# 例外：README 里引用了这三个文件里的数字，不提交就没法核对。
+# eval_prod.json = 124 题五组（第 2.1 节）
+# eval_prod4.json = 316 题三组（第 2.2 节）
+# eval_multiturn.json = 10 组两轮对话（第 16.1 节）
 !data/eval_prod.json
+!data/eval_prod4.json
+!data/eval_multiturn.json
+
+# 用户上传的文档（内容属于使用者，不进仓库；目录结构由 app/ingest.py 自己建）
+data/uploads/

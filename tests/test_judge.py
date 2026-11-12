@@ -6,7 +6,8 @@
 
 import pytest
 
-from query import REFUSAL_TEXT, _parse_citations, is_refusal, parse_verdict
+from prompts import is_refusal, parse_citations as _parse_citations, parse_verdict
+from query_consts import REFUSAL_TEXT
 
 
 class TestParseVerdict:
@@ -73,7 +74,7 @@ class TestEvalHit:
     """评测判定：组间 AND、组内 OR。写错会让分数虚高。"""
 
     def test_and_of_ors(self):
-        from run_eval import hit
+        from evalutil import hit
 
         groups = [["28"], ["订单"]]
         assert hit("订单数会高估 28%", groups) is True
@@ -81,7 +82,7 @@ class TestEvalHit:
         assert hit("高估 28%", groups) is False
 
     def test_or_inside_group(self):
-        from run_eval import hit
+        from evalutil import hit
 
         assert hit("用了 device_id", [["device_id", "设备号"]]) is True
         assert hit("用了设备号", [["device_id", "设备号"]]) is True

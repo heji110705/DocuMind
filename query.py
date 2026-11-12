@@ -37,78 +37,38 @@ from lightrag.kg.shared_storage import initialize_pipeline_status  # noqa: E402
 from lightrag.utils import EmbeddingFunc  # noqa: E402
 
 from embedders import build_embedder  # noqa: E402
+from index_stats import count_chunks, index_stats  # noqa: E402
+# 提示词全部在 prompts.py。这里必须把"用到的每一个名字"都 import 进来——
+# 少导一个不会在 import 时报错，只会在真正走到那条路径时抛 NameError。
+# 上一版就漏了 JUDGE_PROMPT 和 evidence_block，表现为**两个模式都答不出**
+# （快速模式也判证据），而单测全绿、/healthz 正常、检索阶段日志一切正常。
+# 这条边界上的教训写成了 tests/test_answer_path.py：把 judge/condense 真的调一次。
+from prompts import (CONDENSE_PROMPT, JUDGE_PROMPT, build_answer_prompt,  # noqa: E402,F401
+                     build_history_block, clean_rewrite, evidence_block,
+                     is_refusal, parse_verdict)
+from prompts import parse_citations as _parse_citations  # noqa: E402
 from llm_client import llm_func, track_usage  # noqa: E402
+# 常量集中在 query_consts，这里的 import 是"对外继续暴露"的兼容层：
+# 老代码里的 `from query import DEFAULT_TOP_K` 仍然有效，但真实定义只有一处。
+from query_consts import (DEFAULT_CHUNK_TOP_K, DEFAULT_TOP_K,  # noqa: E402,F401
+                          MAX_QUESTION, MODES, REFUSAL_HINTS, REFUSAL_TEXT)
 from rerankers import get_model as get_reranker  # noqa: E402
 from rerankers import local_rerank  # noqa: E402
 
-REFUSAL_TEXT = "证据不足：文档中未提及相关内容。"
-REFUSAL_HINTS = ("证据不足", "未提及", "未提到", "没有提到", "无法回答", "无法从材料", "材料中没有")
-
-# 允许的检索模式。LightRAG 内部只有这几种，传错值会抛异常并冒成 500，
-# 所以在 HTTP 边界就要挡住（见 app/main.py 的 _read_params）。
-MODES = ("naive", "local", "global", "hybrid", "mix")
-
-# 检索预算的默认值。这三个数字必须只有一处定义：
-# 之前 CLI 用 10、HTTP 用 20、非流式用 6，同一个问题在三个入口召回的证据不一样，
-# README 上的准确率也就没法用界面复现。
-DEFAULT_TOP_K = 10
-DEFAULT_CHUNK_TOP_K = 6
-
-SYSTEM_PROMPT = (
-    "你是严谨的文档问答助手。以下规则没有例外：\n"
-    "1. 只能使用【证据】中的内容作答，不得引入外部知识或自行推断。\n"
-    "2. 每个事实句末尾必须标注来源编号，格式为 [1]、[2]，可多个。\n"
-    "3. 只有当【证据】完全没有涉及问题所问的对象时，才输出这一句："
-    + REFUSAL_TEXT
-    + "\n"
-    "   证据里有部分相关信息时，就把能确认的部分答出来并标注来源，不要因为不完整而整段拒答。\n"
-    "4. 回答用中文，先给结论再给依据，不要复述问题。"
-)
-
-# 为什么是"先摘录、再判定"而不是直接输出一个标签：
-# 实测发现直接判标签时，证据 1 万多字、答案埋在表格里，模型倾向于整体印象判 INSUFFICIENT，
-# 同一题重复跑还会给出不同结论。强制先逐字抄一句原文，等于让它先定位再表态，
-# 判定既稳定又可人工复核（摘录原文能直接看出它凭什么判）。
-JUDGE_PROMPT = (
-    "你在做 RAG 的证据审核。必须按下面两步作答，不要做别的解释。\n\n"
-    "第一步 摘录：从【证据】里逐字抄一句能直接回答问题所问的原文（最长两句）。"
-    "表格整行、列表项、括号里的数字都可以抄，抄的时候连同上文的对象名一起抄，"
-    "确保单看这一句就能对上问题。证据里确实没有，就只写 NONE。\n"
-    "第二步 判定：摘录到了写 SUFFICIENT，摘录不到写 INSUFFICIENT。\n\n"
-    "只输出这两行：\n"
-    "摘录：<原文或 NONE>\n"
-    "判定：<SUFFICIENT 或 INSUFFICIENT>\n\n"
-    "【问题】{question}\n\n【证据】\n{evidence}"
-)
-
-
-def parse_verdict(raw: str) -> tuple[bool, str]:
-    """从裁判输出里取 (证据是否足够, 摘录原文)。
-
-    判定标签缺失时按"不足"处理（宁可拒答，不要编）；
-    判定与摘录自相矛盾时（说 SUFFICIENT 却摘不出原文）也按"不足"处理。
-    """
-    text = raw or ""
-    m = re.search(r"判定[：:\s]*\s*(INSUFFICIENT|SUFFICIENT)", text, re.I)
-    if m:
-        verdict = m.group(1).upper()
-    elif re.search(r"\bINSUFFICIENT\b", text.upper()):
-        verdict = "INSUFFICIENT"
-    elif re.search(r"\bSUFFICIENT\b", text.upper()):
-        verdict = "SUFFICIENT"
-    else:
-        verdict = "INSUFFICIENT"
-
-    m2 = re.search(r"摘录[：:]\s*([\s\S]*)", text)
-    quote = m2.group(1).strip() if m2 else ""
-    quote = re.split(r"判定[：:]", quote)[0].strip()
-    if verdict == "SUFFICIENT" and (not quote or quote.upper().startswith("NONE")):
-        return False, quote
-    return verdict == "SUFFICIENT", quote
-
-
+# ------------------------------------------------------------------ 数据结构
 @dataclass
 class Answer:
+    """一次问答的完整结果，也是 HTTP 层与评测脚本共用的契约。
+
+    拆 prompts.py 的时候这个类被整段弄丢过一次：`ask()` 里还在 `return Answer(...)`，
+    但类本身已经不在了。表现是**每一道题都在 return 那一行抛 NameError**，
+    而检索、成本记账、日志全部正常——从日志上看像是"跑完了但没结果"。
+
+    它值得单独写一段注释的原因：这是一个"被两个模块同时依赖的数据结构"，
+    删掉它不会有 import 错误（因为它只在本文件内部使用），
+    只有真正跑一次问答才会暴露。`tests/test_answer_path.py` 现在覆盖了这条路径。
+    """
+
     question: str
     answer: str
     refused: bool
@@ -124,45 +84,35 @@ class Answer:
     extra: dict = field(default_factory=dict)
 
 
-def _evidence_block(chunks: list[dict]) -> str:
-    lines = []
-    for i, c in enumerate(chunks, 1):
-        src = c.get("file_path") or "文档"
-        body = (c.get("content") or "").strip()
-        lines.append(f"[{i}] 来源：{src}\n{body}")
-    return "\n\n".join(lines)
+@dataclass
+class Ingest:
+    """一次增量入库的结果。字段刻意做得比"成功/失败"细，
+    因为界面上要显示"这次进了几块、花了多少钱"，而不只是一个对勾。"""
 
+    file_path: str
+    chars: int
+    chunks_before: int
+    chunks_after: int
+    elapsed_ms: int
+    cost: float
+    calls: int
+    duplicate: bool = False
 
-def build_answer_prompt(question: str, chunks: list[dict], quote: str = "") -> tuple[str, str]:
-    """拼作答提示词，返回 (user_prompt, system_prompt)。
+    @property
+    def chunks_added(self) -> int:
+        return max(0, self.chunks_after - self.chunks_before)
 
-    裁判判"足够"时手上已经有一句能对上问题的原文，把它当锚点交给作答模型：
-    否则它要在上万字证据里自己再找一遍，实测会偶发判自己"证据不足"而整段拒答。
-
-    流式与非流式共用这一个函数，避免"两个入口拼出两种提示词"这种低级漂移。
-    """
-    hint = ""
-    if quote and not quote.upper().startswith("NONE"):
-        hint = "\n\n【与问题直接相关的原文】\n" + quote
-    return question, SYSTEM_PROMPT + hint + "\n\n【证据】\n" + _evidence_block(chunks)
-
-
-def _parse_citations(text: str, n_chunks: int) -> list[int]:
-    seen: list[int] = []
-    for m in re.finditer(r"\[(\d{1,2})\]", text):
-        k = int(m.group(1))
-        if 1 <= k <= n_chunks and k not in seen:
-            seen.append(k)
-    return seen
-
-
-def is_refusal(text: str) -> bool:
-    if not text:
-        return True
-    if text.strip().startswith(REFUSAL_TEXT[:5]):
-        return True
-    head = text[:60]
-    return any(h in head for h in REFUSAL_HINTS)
+    def as_dict(self) -> dict:
+        return {
+            "file_path": self.file_path,
+            "chars": self.chars,
+            "chunks_added": self.chunks_added,
+            "chunks_total": self.chunks_after,
+            "elapsed_ms": self.elapsed_ms,
+            "cost_cny": round(self.cost, 6),
+            "calls": self.calls,
+            "duplicate": self.duplicate,
+        }
 
 
 class DocuMind:
@@ -175,10 +125,19 @@ class DocuMind:
         # 因为它们本来就是串行/受控并发，加锁只会把跑批拖长。
         self.lock: asyncio.Lock | None = None
 
-    async def open(self) -> "DocuMind":
+    async def open(self, create_if_missing: bool = False) -> "DocuMind":
+        """加载索引。
+
+        create_if_missing=True 是给多租户和上传功能用的：新租户第一次进来时
+        索引目录还不存在，此时建一个**空索引**（LightRAG 允许空库启动），
+        然后由他上传的文档把内容填进去。默认 False——本地演示要是索引没建好，
+        报错比悄悄起一个空服务好，否则界面上每一问都是"证据不足"。
+        """
         storage = ROOT / "rag_storage" / self.tag
         if not storage.exists():
-            raise SystemExit(f"[FAIL] 索引不存在：{storage}，先跑 run_index.py --tag {self.tag}")
+            if not create_if_missing:
+                raise SystemExit(f"[FAIL] 索引不存在：{storage}，先跑 run_index.py --tag {self.tag}")
+            storage.mkdir(parents=True, exist_ok=True)
         fn, dim, name = build_embedder(self.embed_backend)
         self.embed_name = name
         self.rag = LightRAG(
@@ -244,11 +203,91 @@ class DocuMind:
     async def judge(self, question: str, chunks: list[dict]) -> tuple[bool, str]:
         """证据充分性判定，返回 (是否足够, 摘录的原文或 NONE)。"""
         raw = await llm_func(
-            JUDGE_PROMPT.format(question=question, evidence=_evidence_block(chunks)),
+            JUDGE_PROMPT.format(question=question, evidence=evidence_block(chunks)),
             max_tokens=400,
             temperature=0,
         )
         return parse_verdict(raw)
+
+    async def condense(self, question: str, history: list[dict] | None) -> str:
+        """把带指代的问题改写成独立问题。没有历史就直接返回原句（零成本）。
+
+        这条路径同样受 track_usage 记账——改写的钱也是钱，
+        界面上"本次成本"必须包含它，否则多轮一开成本就少算一次调用。
+        """
+        if not history:
+            return question
+        raw = await llm_func(
+            CONDENSE_PROMPT.format(history=build_history_block(history), question=question),
+            max_tokens=200,
+            temperature=0,
+        )
+        return clean_rewrite(raw, question)
+
+    async def ingest(self, text: str, file_path: str) -> Ingest:
+        """把一篇文档增量插进当前索引，返回新增块数与真实开销。
+
+        为什么不是"重建索引"：122 块的语料重建一次要 3 分钟、¥1 左右，
+        而插一篇 2 千字的文档只要十几秒、几分钱。演示时"上传→立刻提问"
+        能不能成立，全靠这一步是不是增量的。
+
+        计数为什么要 flush 之后再读：LightRAG 的 JsonKVStorage 平时只改内存里的
+        共享字典，磁盘上的 json 由 index_done_callback 落盘。直接在 ainsert 之后
+        读文件，读到的是**上一次**的快照，于是"新增 0 块"——看起来像没插进去。
+        """
+        assert self.rag is not None, "先 await open()"
+        text = (text or "").strip()
+        if len(text) < 20:
+            raise ValueError("文档内容太少（<20 字），解析可能失败")
+
+        before = count_chunks(self.tag)
+        t0 = time.perf_counter()
+        with track_usage() as used:
+            if self.lock is not None:
+                # 插入会改共享存储，和检索串行，避免查到写了一半的索引。
+                async with self.lock:
+                    await self.rag.ainsert(text, file_paths=file_path)
+                    await self.rag.text_chunks.index_done_callback()
+            else:
+                await self.rag.ainsert(text, file_paths=file_path)
+                await self.rag.text_chunks.index_done_callback()
+        dt = int((time.perf_counter() - t0) * 1000)
+        after = count_chunks(self.tag)
+        return Ingest(
+            file_path=file_path,
+            chars=len(text),
+            chunks_before=before,
+            chunks_after=after,
+            elapsed_ms=dt,
+            cost=used.cost,
+            calls=used.calls,
+            # 内容哈希相同会被 LightRAG 去重，此时块数不变，这是正常行为不是失败。
+            duplicate=after <= before,
+        )
+
+    def stats(self) -> dict:
+        return index_stats(self.tag)
+
+    async def delete(self, doc_id: str) -> dict:
+        """按 doc_id 删除一篇文档（含它的 chunk 与只属于它的实体）。
+
+        为什么要做删除：上传是单向门的话，演示时传错一份文件就只能重建索引。
+        LightRAG 的 adelete_by_doc_id 会连带清掉只有这篇文档引用到的实体，
+        但不是事务性的——删完要重新数一遍规模，别拿删之前的数字当真。
+        """
+        assert self.rag is not None, "先 await open()"
+        before = count_chunks(self.tag)
+        if self.lock is not None:
+            async with self.lock:
+                await self.rag.adelete_by_doc_id(doc_id)
+                await self.rag.text_chunks.index_done_callback()
+        else:
+            await self.rag.adelete_by_doc_id(doc_id)
+            await self.rag.text_chunks.index_done_callback()
+        after = count_chunks(self.tag)
+        return {"doc_id": doc_id, "chunks_removed": max(0, before - after),
+                "chunks_total": after}
+
 
     async def ask(
         self,
@@ -258,14 +297,19 @@ class DocuMind:
         guard: bool = True,
         top_k: int = DEFAULT_TOP_K,
         chunk_top_k: int = DEFAULT_CHUNK_TOP_K,
+        history: list[dict] | None = None,
     ) -> Answer:
         t0 = time.perf_counter()
 
-        # 整个请求（含检索期的关键词抽取）都在自己的账本里记账。
+        # 整个请求（含检索期的关键词抽取、多轮改写、判定）都在自己的账本里记账。
         # 用全局计数器相减在并发跑批时会串账，实测单题能算出 9 次调用、28k prompt token。
         with track_usage() as used:
+            # 先做指代消解：这一步必须在检索之前，否则"那它的默认值呢"这种问题
+            # 向量化之后没有主语，召回的是"默认值"字面最像的块。
+            standalone = await self.condense(question, history)
+
             chunks, used_rerank = await self.retrieve(
-                question, mode=mode, rerank=rerank, top_k=top_k, chunk_top_k=chunk_top_k
+                standalone, mode=mode, rerank=rerank, top_k=top_k, chunk_top_k=chunk_top_k
             )
 
             def finish(text: str, refused: bool) -> Answer:
@@ -287,6 +331,8 @@ class DocuMind:
                         "prompt_tokens": used.prompt_tokens,
                         "completion_tokens": used.completion_tokens,
                         "n_chunks": len(chunks),
+                        "standalone": standalone,
+                        "history_used": len(history or []),
                     },
                 )
 
@@ -295,13 +341,13 @@ class DocuMind:
 
             quote = ""
             if guard:
-                enough, quote = await self.judge(question, chunks)
+                enough, quote = await self.judge(standalone, chunks)
                 if not enough:
                     ans = finish(REFUSAL_TEXT, True)
                     ans.extra["judge_quote"] = quote
                     return ans
 
-            prompt, system = build_answer_prompt(question, chunks, quote)
+            prompt, system = build_answer_prompt(standalone, chunks, quote)
             text = await llm_func(prompt, system_prompt=system, temperature=0)
             text = (text or "").strip()
             return finish(text, is_refusal(text))

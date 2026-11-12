@@ -9,6 +9,9 @@ python-dotenv==1.2.4
 # PDF 解析（本项目只做文本层，扫描件需另接 OCR）
 pymupdf==2.1
 numpy==2.5.4
-# Web 服务（SSE 流式 + 单页 UI）
+# Web 服务（SSE 流式 + 单页 UI + 文档上传）
 fastapi==0.162.4
 uvicorn==0.54.0
+# 上传接口用的是 multipart/form-data。少这个包 FastAPI 启动就会报
+# "Form data requires python-multipart"，而且报错在生命周期里，很容易漏。
+python-multipart==0.0.33

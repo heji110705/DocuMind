@@ -20,6 +20,30 @@ _LOCK = threading.Lock()
 
 MODEL_NAME = os.environ.get("LOCAL_RERANK_MODEL", "BAAI/bge-reranker-v2-m3-int8")
 
+# 推理线程数。这是本项目唯一一个"改了就有用、而且不损失精度"的性能旋钮。
+#
+# 起因是老结论"没有便宜的降速办法，只能换更小的模型或上 GPU"。为了验证这句话，
+# 用 tools/bench_threads.py 在同一进程里扫了一遍线程数（32 条 × 512 字，每组重复多次取 min）：
+#
+#     threads=1   74,977ms
+#     threads=2   39,393ms
+#     threads=4   22,046ms   ← 选它
+#     threads=8   18,084 / 50,147 / 82,211ms   （方差极大，同一输入能差 4.5 倍）
+#     threads=16  134,116 ~ 153,337ms          （比单线程还慢一倍）
+#
+# 不是笔误：i9-12900H 是大小核 + 有功耗墙，onnxruntime 默认按物理核数开 intra-op 线程，
+# 线程数超过 P 核数之后，调度器开始把算子从 P 核甩到 E 核，而 cross-encoder 的
+# attention 是同步屏障式的——只要有一个线程落在 E 核，整批都得等它。
+# 于是"多开线程"从并行变成了排队 + 迁移开销。
+#
+# 4 = 本机 P 核数（12900H 是 6P+8E，留 2 个 P 核给 Web 服务与 Python 主线程）。
+# 别的机器不一定也是 4，所以做成环境变量；压测脚本会告诉你该填多少。
+#
+# 附带结论：换更小的模型没用。同一批数据上 bge-reranker-base（278M，fp32 未量化）
+# 8 条就要 min 14,206ms / p50 16,881ms，32 条 min 66,651ms——比 v2-m3-int8 慢 3 倍。
+# 参数量小不等于快，量化才是。所以"降速"这件事的答案不是换模型，是改线程数。
+THREADS = int(os.environ.get("RERANK_THREADS", "4")) or None
+
 # 单篇送进 cross-encoder 的最大字符数。
 #
 # 这里踩过一个必须写下来的坑。最初观察到"160 字符 91ms/条、192 字符 799ms/条"，
@@ -71,7 +95,7 @@ def get_model():
             if _MODEL is None:
                 from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-                _MODEL = TextCrossEncoder(model_name=MODEL_NAME)
+                _MODEL = TextCrossEncoder(model_name=MODEL_NAME, threads=THREADS)
     return _MODEL
 
 

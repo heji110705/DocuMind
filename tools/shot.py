@@ -62,6 +62,10 @@ async def shot(url: str, out: Path, wait_s: int, click_cite: bool = False):
 
         await call("Page.enable")
         await call("Runtime.enable")
+        # 关缓存：改过 .js/.css 之后浏览器可能还在用旧副本，
+        # 截出来的是"上一版界面"，排查时会往完全错误的方向找。
+        await call("Network.enable")
+        await call("Network.setCacheDisabled", {"cacheDisabled": True})
         await call("Page.navigate", {"url": url})
         await asyncio.sleep(2)
 

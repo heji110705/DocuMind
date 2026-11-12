@@ -31,6 +31,122 @@ class Parsed:
     tables: int = 0
     headings: int = 0
     notes: list[str] = field(default_factory=list)
+    # OCR 专属：平均置信度（0~1）。低于 0.6 基本没法用，要让调用方知道
+    ocr_confidence: float | None = None
+
+
+# ------------------------------------------------------------------------ OCR
+#
+# 为什么要有这一层：
+# 扫描件（打印后扫描、手机拍照转 PDF、传真件）里没有任何文本层，
+# `page.get_text()` 返回空字符串。以前的表现是索引里插进去 0 字，
+# 然后用户问什么都是"证据不足"——看起来像模型不行，其实是根本没读到内容。
+#
+# 两个后端，按可用性自动选：
+#   rapidocr-onnxruntime   纯 pip 安装，自带中英文模型，不需要系统依赖。首选。
+#   tesseract             识别质量更稳，但要装系统包和语言包，容器里多一层 apt。
+# 都没有时**不静默降级**：抛一个能看懂的错，而不是把空文本插进索引。
+
+OCR_DPI = 200          # 200 够印刷体；再高只会更慢
+OCR_MIN_CHARS_PER_PAGE = 20   # 平均每页少于这个字符数，就当没有文本层
+
+
+def ocr_backend() -> str | None:
+    """返回当前可用的 OCR 后端名，没有就 None。"""
+    try:
+        import rapidocr_onnxruntime  # noqa: F401
+        return "rapidocr"
+    except Exception:
+        pass
+    import shutil
+    if shutil.which("tesseract"):
+        try:
+            import pytesseract  # noqa: F401
+            return "tesseract"
+        except Exception:
+            return None
+    return None
+
+
+def _normalize_ocr(text: str) -> str:
+    """OCR 结果做一次 NFKC 归一化。
+
+    rapidocr 会把等宽/代码字体里的 ASCII 认成全角字符：`pay_amount` → `ｐａｙ_ａｍｏｕｎｔ`。
+    肉眼几乎看不出区别，但入库之后字段名就再也匹配不上了——
+    实测扫描件里 "pay_amount" 完全搜不到，直到加了这一步。
+    NFKC 把全角字母数字折回半角，对中文正文没有副作用。
+    """
+    import unicodedata
+
+    return unicodedata.normalize("NFKC", text or "")
+
+
+def _page_images(path: Path, max_pages: int | None):
+    import pymupdf as fitz
+
+    doc = fitz.open(path)
+    n = min(max_pages, len(doc)) if max_pages else len(doc)
+    try:
+        for i in range(n):
+            pix = doc[i].get_pixmap(dpi=OCR_DPI)
+            yield i, pix
+    finally:
+        doc.close()
+
+
+def _ocr_rapidocr(path: Path, max_pages: int | None) -> Parsed:
+    import numpy as np
+    from rapidocr_onnxruntime import RapidOCR
+
+    engine = RapidOCR()
+    out: list[str] = []
+    scores: list[float] = []
+    pages = 0
+    for i, pix in _page_images(path, max_pages):
+        pages = i + 1
+        img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+        if pix.n == 4:
+            img = img[:, :, :3]
+        result, _ = engine(img)
+        lines = [t for _, t, s in (result or []) if t and t.strip()]
+        scores += [float(s) for _, t, s in (result or []) if t and t.strip()]
+        out.append(f"\n<!-- 第 {i + 1} 页（OCR） -->\n" + _normalize_ocr("\n".join(lines)))
+    conf = round(sum(scores) / len(scores), 3) if scores else None
+    notes = [f"扫描件：无文本层，已用 rapidocr 识别（{OCR_DPI} DPI）"]
+    if conf is not None and conf < 0.6:
+        notes.append(f"OCR 平均置信度偏低（{conf}），数字与英文可能识别错，建议人工复核")
+    return Parsed("\n".join(out).strip(), "ocr", pages, notes=notes, ocr_confidence=conf)
+
+
+def _ocr_tesseract(path: Path, max_pages: int | None) -> Parsed:
+    import io
+
+    import pytesseract
+    from PIL import Image
+
+    out: list[str] = []
+    pages = 0
+    for i, pix in _page_images(path, max_pages):
+        pages = i + 1
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        txt = pytesseract.image_to_string(img, lang="chi_sim+eng")
+        out.append(f"\n<!-- 第 {i + 1} 页（OCR） -->\n" + _normalize_ocr(txt.strip()))
+    return Parsed("\n".join(out).strip(), "ocr", pages,
+                  notes=[f"扫描件：无文本层，已用 tesseract 识别（{OCR_DPI} DPI）"])
+
+
+def _parse_ocr(path: Path, max_pages: int | None, backend: str | None = None) -> Parsed:
+    which = backend or ocr_backend()
+    if which == "rapidocr":
+        return _ocr_rapidocr(path, max_pages)
+    if which == "tesseract":
+        return _ocr_tesseract(path, max_pages)
+    raise RuntimeError(
+        "这份 PDF 没有文本层（扫描件），需要 OCR 后端：\n"
+        "  pip install -r requirements-ocr.txt   # 推荐 rapidocr，纯 pip，无系统依赖\n"
+        "或安装 tesseract 并保证它在 PATH 里"
+    )
+
 
 
 # --------------------------------------------------------------------- docling
@@ -165,23 +281,77 @@ def _parse_pymupdf(path: Path, max_pages: int | None) -> Parsed:
 
 # ---------------------------------------------------------------------- 入口
 
-def parse_pdf(path: str | Path, backend: str = "auto", max_pages: int | None = None) -> Parsed:
-    """backend: auto | docling | pymupdf"""
+def parse_pdf(
+    path: str | Path,
+    backend: str = "auto",
+    max_pages: int | None = None,
+    ocr: str = "auto",
+) -> Parsed:
+    """backend: auto | docling | pymupdf | ocr
+
+    ocr: auto（文本层为空才 OCR，默认）| off（绝不 OCR）| always（强制 OCR）
+    """
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(path)
+
+    if backend == "ocr":
+        return _parse_ocr(path, max_pages)
+
     if backend in ("auto", "docling") and _has_docling():
         try:
-            return _parse_docling(path, max_pages)
+            p = _parse_docling(path, max_pages)
         except Exception as e:
             if backend == "docling":
                 raise
             p = _parse_pymupdf(path, max_pages)
             p.notes.append(f"docling 失败（{type(e).__name__}），已降级 pymupdf")
-            return p
-    if backend == "docling":
+    elif backend == "docling":
         raise RuntimeError("指定了 docling 但没装：pip install docling")
-    return _parse_pymupdf(path, max_pages)
+    else:
+        p = _parse_pymupdf(path, max_pages)
+
+    return _maybe_ocr(path, p, max_pages, ocr)
+
+
+def _maybe_ocr(path: Path, p: Parsed, max_pages: int | None, ocr: str) -> Parsed:
+    """文本层为空时补一次 OCR。
+
+    判据不是"整篇 0 字"，而是"平均每页少于 20 字"：
+    扫描件里偶尔会有一行页码之类的文本层残留，只看 0 字会漏掉。
+    """
+    if ocr == "off":
+        return p
+    pages = max(1, p.pages)
+    need = ocr == "always" or len(p.markdown.strip()) < OCR_MIN_CHARS_PER_PAGE * pages
+    if not need:
+        return p
+
+    which = ocr_backend()
+    if not which:
+        p.notes.append(
+            "没有文本层，且未安装 OCR 后端（pip install -r requirements-ocr.txt）；"
+            "本次返回的是空/近空正文"
+        )
+        return p
+
+    try:
+        o = _parse_ocr(path, max_pages, which)
+    except Exception as e:
+        p.notes.append(f"OCR 失败（{type(e).__name__}: {e}），已保留原结果")
+        return p
+
+    if len(o.markdown.strip()) <= len(p.markdown.strip()):
+        p.notes.append(f"识别到的 OCR 文本不比原文更多（{len(o.markdown)} 字），保留原结果")
+        return p
+
+    o.notes = p.notes + o.notes
+    o.headings = p.headings
+    # 扫描件里表格没有线框信息，find_tables 也认不出来，这里如实记 0，
+    # 不要沿用 pymupdf 的计数——那个数字此刻已经不代表任何东西了。
+    o.tables = 0
+    return o
+
 
 
 if __name__ == "__main__":

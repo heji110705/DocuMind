@@ -5,107 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DocuMind · 文档问答</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f5d50'/%3E%3Ctext x='16' y='22' font-size='16' font-family='sans-serif' fill='%23fff' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
-<style>
-  :root{
-    --bg:#fbfbfa; --panel:#fff; --ink:#1b1b1a; --muted:#6b6b68;
-    --line:#e7e6e3; --accent:#2f5d50; --accent-soft:#eef4f1; --warn:#8a5a1f;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:860px;margin:0 auto;padding:44px 24px 120px}
-  header{display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap}
-  h1{font-size:19px;margin:0;letter-spacing:.02em;font-weight:600}
-  .sub{color:var(--muted);font-size:13px}
-  .meta-line{margin:14px 0 26px;padding:10px 14px;background:var(--accent-soft);
-    border-left:2px solid var(--accent);border-radius:0 4px 4px 0;font-size:13px;color:#2b4b42}
-  .ask{display:flex;gap:10px;position:sticky;top:0;background:var(--bg);padding:12px 0;z-index:5}
-  input[type=text]{
-    flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
-    font-size:15px;font-family:inherit;color:inherit;outline:none;transition:border-color .15s
-  }
-  input[type=text]:focus{border-color:var(--accent)}
-  button{
-    padding:0 20px;border:1px solid var(--accent);background:var(--accent);color:#fff;
-    border-radius:6px;font-size:14px;font-family:inherit;cursor:pointer;white-space:nowrap
-  }
-  button:disabled{opacity:.45;cursor:default}
-  button.ghost{background:var(--panel);color:var(--muted);border-color:var(--line)}
-  button.ghost:hover{color:var(--warn);border-color:var(--warn)}
-  .samples{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 26px}
-  .samples span{
-    font-size:12.5px;color:var(--muted);border:1px solid var(--line);background:var(--panel);
-    padding:5px 10px;border-radius:999px;cursor:pointer
-  }
-  .samples span:hover{color:var(--accent);border-color:var(--accent)}
-  .speed{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 24px;font-size:12.5px}
-  .speed .lbl{color:var(--muted)}
-  .speed button{
-    font:inherit;line-height:1.6;cursor:pointer;background:var(--panel);color:var(--muted);
-    border:1px solid var(--line);border-radius:6px;padding:4px 12px;white-space:nowrap
-  }
-  .speed button.on{color:#fff;background:var(--accent);border-color:var(--accent)}
-  .speed .why{flex-basis:100%;color:var(--muted);font-size:11.5px;line-height:1.7;opacity:.85}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:18px}
-  .q{font-weight:600;margin:0 0 4px}
-  .stages{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--muted);margin:10px 0 0;font-family:var(--mono)}
-  .stages i{font-style:normal;opacity:.35}
-  .stages i.on{opacity:1;color:var(--accent)}
-  .stages i.done::before{content:"✓ ";color:var(--accent)}
-  .stages .elapsed{margin-left:auto;opacity:.6;font-variant-numeric:tabular-nums}
-  .ans{margin:14px 0 0;white-space:pre-wrap}
-  .ans b{font-weight:600}
-  .cite{
-    display:inline-block;font-size:11px;line-height:1;padding:3px 5px;margin:0 1px;
-    border-radius:3px;background:var(--accent-soft);color:var(--accent);
-    cursor:pointer;vertical-align:1px;font-family:var(--mono)
-  }
-  .cite:hover{background:var(--accent);color:#fff}
-  .refused{color:var(--warn)}
-  .foot{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);
-    border-top:1px solid var(--line);margin-top:18px;padding-top:12px;font-family:var(--mono)}
-  .drawer{
-    position:fixed;top:0;right:0;width:min(460px,92vw);height:100%;background:var(--panel);
-    border-left:1px solid var(--line);padding:22px;overflow-y:auto;transform:translateX(100%);
-    transition:transform .18s ease;z-index:10;box-shadow:-8px 0 24px rgba(0,0,0,.06)
-  }
-  .drawer.on{transform:none}
-  .drawer h3{font-size:13px;margin:0 0 12px;color:var(--muted);font-weight:500;letter-spacing:.04em}
-  .drawer .src{font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:10px}
-  .drawer pre{white-space:pre-wrap;font-size:13px;line-height:1.85;margin:0;color:#333}
-  .close{position:absolute;top:14px;right:18px;cursor:pointer;color:var(--muted);font-size:18px;line-height:1}
-  .close:hover{color:var(--ink)}
-  .empty{color:var(--muted);font-size:13.5px;line-height:2;padding:8px 2px}
-  .e-row{margin-bottom:10px}
-  .e-row b{color:var(--ink);font-weight:600;margin-right:8px}
-  .cite-demo{display:inline-block;font-size:11px;line-height:1;padding:3px 5px;border-radius:3px;
-    background:var(--accent-soft);color:var(--accent);font-family:var(--mono);vertical-align:1px}
-  .evalbox{margin-top:26px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px 16px}
-  .evalbox summary{cursor:pointer;font-size:13px;color:var(--muted);outline:none}
-  .evalbox summary:hover{color:var(--accent)}
-  .evalbox table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px;font-family:var(--mono)}
-  .evalbox th,.evalbox td{text-align:right;padding:6px 4px;border-bottom:1px solid var(--line)}
-  .evalbox th:first-child,.evalbox td:first-child{text-align:left}
-  .evalbox th{color:var(--muted);font-weight:500}
-  .evalbox tr.hl td{color:var(--accent);font-weight:600}
-  .evalbox .note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7}
-  footer{margin-top:30px;font-size:11.5px;color:var(--muted);line-height:1.8}
-</style>
+<link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>DocuMind</h1>
     <span class="sub">文档问答 · 段落级引用 · 证据不足则拒答</span>
+    <span class="tenant" id="badge">索引 …</span>
   </header>
-  <div class="meta-line">
-    语料 100,864 字 / 122 块（22 篇）。答案里的 [n] 可点，右侧会展开原文段落。
-    证据不够时它会直接说不知道，不猜。
-  </div>
+
+  <!-- 用 <form> 包起来，不是风格问题：Chrome 对"不在 form 里的 password 输入框"
+       会在控制台打一条 warning。演示时对方打开 devtools 看到一条黄色告警，
+       就得花三十秒解释它无害——不如直接消掉。 -->
+  <form class="keybox" id="keybox" hidden onsubmit="return false">
+    <input type="password" id="keyin" placeholder="API Key（X-API-Key）" autocomplete="off">
+    <button class="tiny" type="button" id="key-save">保存</button>
+    <span class="hint">这个实例配置了多租户，Key 决定你能看到哪一份索引</span>
+  </form>
+
+  <div class="meta-line" id="meta">正在读取索引状态 …</div>
 
   <form class="ask" id="form">
     <input type="text" id="q" maxlength="500" placeholder="问点什么，比如：订单数为什么必须去重？" autocomplete="off">
@@ -119,8 +38,12 @@
     <button type="button" data-r="1">高精度 · 1-3 分钟</button>
     <span class="why" id="why">
       快速 = 图谱+向量召回 + 证据判定；高精度 = 再加本地 cross-encoder 重排。
-      重排在 CPU 上一条候选约 2 秒、32 条约一分多钟，慢在功耗墙不在算法，详见 README 第 14 节。
     </span>
+  </div>
+
+  <div class="session">
+    <span id="sess">新会话</span>
+    <button type="button" class="tiny ghost" id="reset-sess" hidden>新会话</button>
   </div>
 
   <div class="samples" id="samples">
@@ -132,21 +55,38 @@
   </div>
 
   <div class="empty" id="empty">
-    <div class="e-row"><b>它能答什么</b>字段口径、指标定义、接口约定、错误码、运维处置——凡是写进这 22 篇文档的，都能带引用答出来。</div>
+    <div class="e-row"><b>它能答什么</b>字段口径、指标定义、接口约定、错误码、运维处置——凡是写进语料的，都能带引用答出来。</div>
     <div class="e-row"><b>它不会什么</b>文档里没有的东西。问竞品、问路线图、问某个用户买了什么，它会说不知道，不编。</div>
     <div class="e-row"><b>怎么验证</b>答案里的 <span class="cite-demo">1</span> 是原文出处，点开就是那一页的原文段落，不用信它，去看。</div>
   </div>
   <div id="log"></div>
 
+  <details class="corpus" id="corpus" hidden>
+    <summary>语料管理 · 上传文档即刻入库（增量索引，不重建）</summary>
+    <div class="body">
+      <div class="drop" id="drop">
+        把 md / txt / pdf 拖到这里，或 <b onclick="document.getElementById('file').click()">选择文件</b>
+        <div style="font-size:11.5px;opacity:.8;margin-top:6px">扫描件会自动走 OCR；单文件上限 20MB</div>
+      </div>
+      <input type="file" id="file" accept=".md,.txt,.pdf" hidden>
+      <div class="up-msg" id="up-msg"></div>
+      <table>
+        <thead><tr><th>文件</th><th style="text-align:right">字数</th><th style="text-align:right">块数</th><th></th></tr></thead>
+        <tbody id="doc-rows"></tbody>
+      </table>
+      <div style="margin-top:8px"><button class="tiny ghost" type="button" id="refresh-docs">刷新清单</button></div>
+    </div>
+  </details>
+
   <details class="evalbox" id="evalbox" hidden>
-    <summary>124 题消融评测：每一层各自值多少</summary>
+    <summary>五组消融评测：每一层各自值多少</summary>
     <table id="evaltbl"></table>
     <div class="note" id="evalnote"></div>
   </details>
 
   <footer>
     底座 LightRAG 1.5.7，作答 DeepSeek，embedding 与重排都在本地 CPU 上跑。
-    评测集 124 题（94 可答 + 30 必拒），判定用关键词命中而不是让模型给自己打分。
+    评测集与逐题明细在 <code>data/eval_prod.json</code>，判定用关键词命中而不是让模型给自己打分。
   </footer>
 </div>
 
@@ -157,238 +97,6 @@
   <pre id="d-body"></pre>
 </div>
 
-<script>
-const log = document.getElementById('log');
-const drawer = document.getElementById('drawer');
-const input = document.getElementById('q');
-const sendBtn = document.getElementById('send');
-const stopBtn = document.getElementById('stop');
-const emptyBox = document.getElementById('empty');
-
-// 引用按卡片存：以前是一个全局数组，问第二个问题时会把第一个问题的引用覆盖掉，
-// 于是点老卡片上的 [2] 要么没反应，要么展开成另一个问题的原文。
-const CITE = new WeakMap();
-
-let BUSY = false, CTRL = null;
-let EVAL_ROWS = [];   // 由 /v1/eval 填充；提前声明，否则 paintSpeed 会撞上 TDZ
-
-document.querySelectorAll('#samples span').forEach(s => {
-  s.onclick = () => { input.value = s.textContent; ask(); };
-});
-document.getElementById('close').onclick = closeDrawer;
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
-drawer.addEventListener('click', e => { if (e.target === drawer) closeDrawer(); });
-function closeDrawer(){ drawer.classList.remove('on'); }
-
-document.getElementById('form').onsubmit = e => { e.preventDefault(); ask(); };
-stopBtn.onclick = () => { if (CTRL) CTRL.abort(); };
-
-const STAGES = [['retrieve','检索证据'],['judge','核对证据'],['answer','生成答案']];
-
-// 0 = 快速（不重排），1 = 高精度（+本地 cross-encoder 重排）
-let USE_RERANK = new URLSearchParams(location.search).get('rerank') === '1' ? 1 : 0;
-const speedBox = document.getElementById('speed');
-function paintSpeed(){
-  speedBox.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.r === USE_RERANK));
-  paintEval();   // 表格里高亮当前模式对应的那一行
-}
-speedBox.querySelectorAll('button').forEach(b => {
-  b.onclick = () => { USE_RERANK = +b.dataset.r; paintSpeed(); };
-});
-paintSpeed();
-
-function esc(s){return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-
-function render(text){
-  // 只处理粗体和引用角标，够用了；引入 markdown 库不值得
-  let h = esc(text).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
-  return h.replace(/\[(\d{1,2})\]/g,(m,n)=>`<span class="cite" data-n="${n}">${n}</span>`);
-}
-
-function renderQuote(text){
-  // 抽屉里显示的是 chunk 原文，带 markdown 记号。只去掉影响阅读的记号，
-  // 不做完整渲染——原文本来就是给人对照的，越接近原样越好。
-  return esc(text)
-    .replace(/^#{1,6}\s*/gm,'')
-    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
-    .replace(/^\s*[-*]\s+/gm,'· ');
-}
-
-document.addEventListener('click', e => {
-  const el = e.target.closest('.cite');
-  if(!el) return;
-  const card = el.closest('.card');
-  const holder = card && CITE.get(card);
-  const n = +el.dataset.n;
-  const c = holder && holder.items.find(x => x.n === n);
-  if(!c) return;
-  document.getElementById('d-src').textContent = `[${n}] ${c.file_path}`;
-  document.getElementById('d-body').innerHTML = renderQuote(c.snippet);
-  drawer.classList.add('on');
-});
-
-function setBusy(on){
-  BUSY = on;
-  sendBtn.disabled = on;
-  stopBtn.hidden = !on;
-}
-
-function footBits(d){
-  const bits = [];
-  if(d.elapsed_ms != null) bits.push(`${(d.elapsed_ms/1000).toFixed(1)}s`);
-  if(d.tokens_in) bits.push(`in ${d.tokens_in}`);
-  if(d.tokens_out) bits.push(`out ${d.tokens_out}`);
-  if(d.cost_cny != null) bits.push(`¥${Number(d.cost_cny).toFixed(4)}`);
-  if(d.refused) bits.push('已拒答');
-  return bits;
-}
-
-const BOOT_Q = new URLSearchParams(location.search).get('q');
-if (BOOT_Q){ input.value = BOOT_Q; setTimeout(ask, 60); }
-
-async function ask(){
-  const q = input.value.trim();
-  if(!q || BUSY) return;
-  emptyBox.style.display = 'none';
-  setBusy(true);
-  input.blur();
-
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = `<p class="q">${esc(q)}</p>
-    <div class="stages">${STAGES.map(([k,v])=>`<i data-k="${k}">${v}</i>`).join('')}<span class="elapsed"></span></div>
-    <div class="ans"></div>
-    <div class="foot"></div>`;
-  log.prepend(card);
-
-  const ans = card.querySelector('.ans');
-  const foot = card.querySelector('.foot');
-  const elapsed = card.querySelector('.elapsed');
-  const holder = {items: []};
-  CITE.set(card, holder);
-
-  let text = '';
-  let done = false;
-  CTRL = new AbortController();
-  const t0 = performance.now();
-  const timer = setInterval(() => {
-    elapsed.textContent = ((performance.now() - t0) / 1000).toFixed(0) + 's';
-  }, 250);
-
-  try{
-    const r = await fetch('/v1/ask/stream', {
-      method:'POST', headers:{'Content-Type':'application/json'}, signal: CTRL.signal,
-      body: JSON.stringify({question:q, mode:'mix', enable_rerank:!!USE_RERANK})
-    });
-    // 参数错误（空问题、超长、mode 非法）是 400 + JSON，不是 SSE。
-    // 以前不判断 r.ok，直接当流读，结果页面上什么都不显示，用户以为卡死了。
-    if(!r.ok){
-      let msg = `HTTP ${r.status}`;
-      try { const j = await r.json(); if(j.error && j.error.message) msg = j.error.message; } catch(_) {}
-      throw new Error(msg);
-    }
-
-    const reader = r.body.getReader();
-    const dec = new TextDecoder();
-    let buf = '';
-
-    while(true){
-      const {value, done: end} = await reader.read();
-      if(end) break;
-      buf += dec.decode(value, {stream:true});
-      let i;
-      while((i = buf.indexOf('\n\n')) >= 0){
-        // 一帧里可能同时有保活注释和真正的 event（":" 开头的行只是注释，不是独立帧），
-        // 所以要把注释行剥掉而不是整帧丢弃——整帧丢弃会连带吞掉紧跟其后的第一个 token，
-        // 表现为答案里突然少半句话。
-        const raw = buf.slice(0, i).replace(/^(:\s*[^\n]*\n?)+/,'').trim();
-        buf = buf.slice(i+2);
-        if(!raw) continue;
-        const ev = (raw.match(/^event: (.+)$/m) || [])[1];
-        const dataLine = (raw.match(/^data: (.*)$/m) || [])[1];
-        if(!ev || !dataLine) continue;
-        let d;
-        try { d = JSON.parse(dataLine); } catch(_) { continue; }
-
-        if(ev === 'stage'){
-          const el = card.querySelector(`i[data-k="${d.name}"]`);
-          if(!el) continue;
-          if(d.status === 'start'){ el.classList.add('on'); }
-          else { el.classList.remove('on'); el.classList.add('done'); }
-        } else if(ev === 'token'){
-          text += d.text;
-          ans.innerHTML = render(text);
-          ans.classList.toggle('refused', text.startsWith('证据不足'));
-        } else if(ev === 'citations'){
-          holder.items = d.items || [];
-        } else if(ev === 'error'){
-          done = true;
-          ans.innerHTML = `<span class="refused">出错了：${esc(d.message)}</span>`;
-        } else if(ev === 'done'){
-          done = true;
-          foot.innerHTML = footBits(d).map(b=>`<span>${b}</span>`).join('');
-        }
-      }
-    }
-    if(!done && !text) ans.innerHTML = `<span class="refused">连接中断，没有收到答案</span>`;
-  } catch(e){
-    if(e.name === 'AbortError'){
-      foot.innerHTML = '<span>已停止</span>';
-      if(!text) ans.innerHTML = '<span class="refused">已停止</span>';
-    } else {
-      ans.innerHTML = `<span class="refused">出错了：${esc(e.message)}</span>`;
-    }
-  } finally {
-    clearInterval(timer);
-    elapsed.remove();
-    setBusy(false);
-    CTRL = null;
-  }
-}
-
-// 把评测表拉进界面：数字只有一份，存在 data/eval_prod.json 里，
-// 界面上的准确率由它注入——省得以后改了一处忘了另一处。
-const EVAL_LABEL = {naive:'纯向量', mix:'+图谱', mix_guard:'+证据判定', mix_rr:'+重排', full:'+重排+判定'};
-
-function paintEval(){
-  if(!EVAL_ROWS.length) return;
-  const cur = USE_RERANK ? 'full' : 'mix_guard';
-  document.getElementById('evaltbl').innerHTML =
-    '<tr><th>配置</th><th>可答率</th><th>拒答正确</th><th>总体</th><th>p50</th></tr>' +
-    EVAL_ROWS.map(x =>
-      `<tr class="${x.config === cur ? 'hl' : ''}"><td>${EVAL_LABEL[x.config] || x.config}</td>` +
-      `<td>${x.acc_fact}%</td><td>${x.refusal_acc}%</td><td>${x.overall}%</td>` +
-      `<td>${(x.p50_ms/1000).toFixed(1)}s</td></tr>`
-    ).join('');
-}
-
-(async () => {
-  try{
-    const r = await fetch('/v1/eval');
-    const d = await r.json();
-    const why = document.getElementById('why');
-    const acc = {};
-    (d.rows || []).forEach(x => { acc[x.config] = x.acc_fact; });
-
-    if(d.available && acc.full != null){
-      why.innerHTML =
-        `快速 = 图谱+向量召回 + 证据判定，可答率 <b>${acc.mix_guard}%</b>；` +
-        `高精度 = 再加本地 cross-encoder 重排，可答率 <b>${acc.full}%</b>，` +
-        `但 CPU 上一条候选约 2 秒、32 条约一分多钟。慢在笔记本功耗墙不在算法，详见 README 第 14 节。`;
-    }
-
-    if(!d.available || !(d.rows || []).length) return;
-    EVAL_ROWS = d.rows;
-    paintEval();
-    document.getElementById('evalnote').textContent =
-      `${d.n} 题（94 可答 + 30 必拒）。可答判定用关键词命中，不用模型自评；` +
-      `p50 是并发跑批时互相抢 CPU 的数字，单请求会好一些。`;
-    document.getElementById('evalbox').hidden = false;
-    // ?panel=1 直接展开评测表：录屏和截图时省一次点击
-    if(new URLSearchParams(location.search).get('panel') === '1') document.getElementById('evalbox').open = true;
-  }catch(_){ /* 拿不到评测数据就保持界面干净，不影响提问 */ }
-})();
-
-</script>
+<script type="module" src="/static/js/main.js"></script>
 </body>
 </html>
