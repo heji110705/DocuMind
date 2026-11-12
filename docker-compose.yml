@@ -14,7 +14,6 @@ services:
     volumes:
       - ./rag_storage:/app/rag_storage:ro   # 索引只读挂载：容器不该改索引
       - ./data:/app/data:ro
-      - ./traces.sqlite:/app/traces.sqlite  # trace 要可写，单独挂文件
     restart: unless-stopped
     mem_limit: 3g
     healthcheck:

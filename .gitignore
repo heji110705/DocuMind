@@ -4,19 +4,24 @@
 .venv/
 __pycache__/
 *.pyc
+
+# 索引与运行产物
 rag_storage/
-data/tmp/
+logs/
+logs_*.txt
 *.log
 .DS_Store
-logs_*.txt
 data/tmp/
 q_test.txt
-data/*_k6.json
-data/*_v1.json
 .pytest_cache/
 ui_*.png
 archive/
+
+# 一次性的中间实验
+data/*_k6.json
+data/*_v1.json
+
+# 消融逐题明细：只留生产那套，方便别人核对 README 里的表格
 data/eval_*.json
 data/eval_*.md
-# 四组消融的逐题明细留着，方便别人核对 README 里的表格
 !data/eval_prod.json

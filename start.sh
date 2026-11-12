@@ -14,12 +14,18 @@ if ! python -c "import fastapi, uvicorn, lightrag" 2>/dev/null; then
   pip install -r requirements.txt -q
 fi
 
+# 索引目录名要和 app 读到的 TAG 一致：.env 里写了 TAG 就得用它，
+# 否则脚本检查 rag_storage/prod，服务却去打开 rag_storage/<别的 tag>，起来就报索引不存在。
+TAG="${TAG:-$(sed -n 's/^TAG=//p' .env | tail -1)}"
 TAG="${TAG:-prod}"
+export TAG
+
 if [ ! -d "rag_storage/$TAG" ]; then
   echo "[*] 没有索引，先建（约 3 分钟，¥1 左右）..."
   python run_index.py --input seed --pages 0 --tag "$TAG" --gleaning 0
 fi
 
+PORT="${PORT:-$(sed -n 's/^PORT=//p' .env | tail -1)}"
 PORT="${PORT:-8000}"
-echo "[*] http://127.0.0.1:$PORT"
+echo "[*] http://127.0.0.1:$PORT （索引 tag=$TAG）"
 exec python -m uvicorn app.main:app --host 127.0.0.1 --port "$PORT"

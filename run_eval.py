@@ -1,18 +1,23 @@
-"""40 题 × 4 组配置消融评测。
+"""124 题 × 5 组配置消融评测。
 
-4 组配置回答的是同一个问题："每一层到底带来了多少收益"
-    naive      只做向量召回，不重排、不判证据
+5 组配置是一个 2×2 因子设计加一个基线，回答"每个开关各自值多少"：
+    naive      只做向量召回（基线）
     mix        图谱 + 向量混合召回，不重排、不判证据
-    mix_rr     加本地 cross-encoder 重排
-    full       mix + 重排 + 证据充分性判定（不足则拒答）
+    mix_guard  mix + 证据判定（= 界面上"快速"模式跑的东西）
+    mix_rr     mix + 本地 cross-encoder 重排
+    full       mix + 重排 + 证据判定（= 界面上"高精度"模式）
+
+为什么要单独跑 mix_guard：界面默认走的是"混合召回 + 判定"，既不是 mix 也不是 full，
+而之前的表里没有这一行，导致界面上标注的准确率只能借用相邻配置的数字。
+把界面真实在跑的配置测出来，标注才不是猜的。
 
 判定：
     可答题 = must_include 里每一组至少命中一个字符串（纯字符串匹配，不用 LLM 当裁判）
     不可答题 = 必须拒答
 
 用法：
-    python run_eval.py --tag noglean
-    python run_eval.py --tag noglean --limit 5      # 冒烟
+    python run_eval.py --tag prod
+    python run_eval.py --tag prod --limit 5      # 冒烟
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ from query import DocuMind, is_refusal  # noqa: E402
 CONFIGS = [
     ("naive", dict(mode="naive", rerank=False, guard=False)),
     ("mix", dict(mode="mix", rerank=False, guard=False)),
+    ("mix_guard", dict(mode="mix", rerank=False, guard=True)),
     ("mix_rr", dict(mode="mix", rerank=True, guard=False)),
     ("full", dict(mode="mix", rerank=True, guard=True)),
 ]
@@ -212,7 +218,7 @@ async def amain(args) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--tag", default="noglean", help="输出文件名用（data/eval_<tag>.json）")
+    p.add_argument("--tag", default="prod", help="输出文件名用（data/eval_<tag>.json）")
     p.add_argument("--index-tag", default="", help="用哪个索引目录，默认同 --tag")
     p.add_argument("--set", default="eval_set_v2.json", help="评测集（默认 124 题 v2）")
     p.add_argument("--embed", default="local", choices=["bailian", "local"])

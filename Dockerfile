@@ -41,8 +41,10 @@ RUN useradd -m -u 10001 app && mkdir -p /app/rag_storage /app/data && chown -R a
 USER app
 
 EXPOSE 8000
+# 探活要从 PORT 读，别写死 8000：CMD 用的是 $PORT，写死的话改了端口容器会一直 unhealthy。
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request,sys; \
-sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).status==200 else 1)"
+    CMD python -c "import os,urllib.request,sys; \
+p=os.environ.get('PORT','8000'); \
+sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{p}/healthz', timeout=2).status==200 else 1)"
 
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

@@ -22,8 +22,8 @@ if hasattr(sys.stdout, "reconfigure"):
 load_dotenv(".env")
 
 TEXTS = [
-    "精装书比平装书贵多少",
-    "硬壳书和纸皮书的价格差多少",
+    "订单数必须按订单号去重，否则一单多书会重复计数",
+    "统计订单量时要去掉重复的订单号",
     "今天广州的天气怎么样",
 ]
 
@@ -88,7 +88,7 @@ def main():
         print("本次费用约 ¥0.00001（0.5 元/百万 token）")
     else:
         print("本次费用 ¥0（本地推理，只吃 CPU）")
-        print("下一步：python run_index.py --input seed/insightpilot-docs.md --pages 10 --embed local")
+        print("下一步：python run_index.py --input seed --pages 0 --embed local --tag prod")
 
 
 if __name__ == "__main__":

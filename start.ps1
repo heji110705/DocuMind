@@ -12,11 +12,19 @@ if (-not (Test-Path ".env")) {
     exit 1
 }
 
-$tag = if ($env:TAG) { $env:TAG } else { "prod" }
+# 索引目录名要和 app 读到的 TAG 一致，否则脚本查一个目录、服务开另一个，起来就报索引不存在。
+$tag = $env:TAG
+if (-not $tag) {
+    $line = Select-String -Path ".env" -Pattern "^TAG=" -ErrorAction SilentlyContinue | Select-Object -Last 1
+    if ($line) { $tag = ($line.Line -split "=", 2)[1].Trim() }
+}
+if (-not $tag) { $tag = "prod" }
+$env:TAG = $tag
+
 if (-not (Test-Path "rag_storage/$tag")) {
     Write-Host "[*] 没有索引，先建（约 3 分钟，¥1 左右）..." -ForegroundColor Cyan
     python run_index.py --input seed --pages 0 --tag $tag --gleaning 0
 }
 
-Write-Host "[*] http://127.0.0.1:$Port" -ForegroundColor Green
+Write-Host "[*] http://127.0.0.1:$Port （索引 tag=$tag）" -ForegroundColor Green
 python -m uvicorn app.main:app --host 127.0.0.1 --port $Port

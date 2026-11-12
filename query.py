@@ -37,12 +37,22 @@ from lightrag.kg.shared_storage import initialize_pipeline_status  # noqa: E402
 from lightrag.utils import EmbeddingFunc  # noqa: E402
 
 from embedders import build_embedder  # noqa: E402
-from llm_client import USAGE, llm_func  # noqa: E402
+from llm_client import llm_func, track_usage  # noqa: E402
 from rerankers import get_model as get_reranker  # noqa: E402
 from rerankers import local_rerank  # noqa: E402
 
 REFUSAL_TEXT = "证据不足：文档中未提及相关内容。"
 REFUSAL_HINTS = ("证据不足", "未提及", "未提到", "没有提到", "无法回答", "无法从材料", "材料中没有")
+
+# 允许的检索模式。LightRAG 内部只有这几种，传错值会抛异常并冒成 500，
+# 所以在 HTTP 边界就要挡住（见 app/main.py 的 _read_params）。
+MODES = ("naive", "local", "global", "hybrid", "mix")
+
+# 检索预算的默认值。这三个数字必须只有一处定义：
+# 之前 CLI 用 10、HTTP 用 20、非流式用 6，同一个问题在三个入口召回的证据不一样，
+# README 上的准确率也就没法用界面复现。
+DEFAULT_TOP_K = 10
+DEFAULT_CHUNK_TOP_K = 6
 
 SYSTEM_PROMPT = (
     "你是严谨的文档问答助手。以下规则没有例外：\n"
@@ -123,6 +133,20 @@ def _evidence_block(chunks: list[dict]) -> str:
     return "\n\n".join(lines)
 
 
+def build_answer_prompt(question: str, chunks: list[dict], quote: str = "") -> tuple[str, str]:
+    """拼作答提示词，返回 (user_prompt, system_prompt)。
+
+    裁判判"足够"时手上已经有一句能对上问题的原文，把它当锚点交给作答模型：
+    否则它要在上万字证据里自己再找一遍，实测会偶发判自己"证据不足"而整段拒答。
+
+    流式与非流式共用这一个函数，避免"两个入口拼出两种提示词"这种低级漂移。
+    """
+    hint = ""
+    if quote and not quote.upper().startswith("NONE"):
+        hint = "\n\n【与问题直接相关的原文】\n" + quote
+    return question, SYSTEM_PROMPT + hint + "\n\n【证据】\n" + _evidence_block(chunks)
+
+
 def _parse_citations(text: str, n_chunks: int) -> list[int]:
     seen: list[int] = []
     for m in re.finditer(r"\[(\d{1,2})\]", text):
@@ -147,6 +171,9 @@ class DocuMind:
         self.embed_backend = embed
         self.use_rerank = use_rerank
         self.rag: LightRAG | None = None
+        # 检索锁：由服务端注入（见 app/main.py）。评测和 CLI 不设，
+        # 因为它们本来就是串行/受控并发，加锁只会把跑批拖长。
+        self.lock: asyncio.Lock | None = None
 
     async def open(self) -> "DocuMind":
         storage = ROOT / "rag_storage" / self.tag
@@ -180,22 +207,29 @@ class DocuMind:
         if self.rag is not None:
             await self.rag.finalize_storages()
 
-    async def ask(
+    async def retrieve(
         self,
         question: str,
         mode: str = "mix",
         rerank: bool = True,
-        guard: bool = True,
-        top_k: int = 10,
-        chunk_top_k: int = 6,
-    ) -> Answer:
-        assert self.rag is not None, "先 await open()"
-        t0 = time.perf_counter()
-        c0 = USAGE.calls
-        p0 = USAGE.prompt_tokens
-        q0 = USAGE.completion_tokens
-        cost0 = USAGE.cost
+        top_k: int = DEFAULT_TOP_K,
+        chunk_top_k: int = DEFAULT_CHUNK_TOP_K,
+    ) -> tuple[list[dict], bool]:
+        """只取证据，不调作答模型。返回 (chunks, 实际是否启用了重排)。
 
+        CLI、流式接口、评测都走这一个方法，保证三个入口召回的东西完全一致。
+        重排是 CPU 独占资源，服务端注入 self.lock 之后这一段会串行；
+        LLM 调用不在锁里，所以多个请求仍然可以同时判定和作答。
+        """
+        assert self.rag is not None, "先 await open()"
+        if self.lock is None:
+            return await self._retrieve(question, mode, rerank, top_k, chunk_top_k)
+        async with self.lock:
+            return await self._retrieve(question, mode, rerank, top_k, chunk_top_k)
+
+    async def _retrieve(
+        self, question: str, mode: str, rerank: bool, top_k: int, chunk_top_k: int
+    ) -> tuple[list[dict], bool]:
         param = QueryParam(
             mode=mode,
             top_k=top_k,
@@ -204,70 +238,80 @@ class DocuMind:
             include_references=True,
         )
         data = await self.rag.aquery_data(question, param=param)
-        payload = data.get("data") or {}
-        chunks = payload.get("chunks") or []
+        payload = (data or {}).get("data") or {}
+        return payload.get("chunks") or [], param.enable_rerank
 
-        def finish(text: str, refused: bool) -> Answer:
-            ms = int((time.perf_counter() - t0) * 1000)
-            return Answer(
-                question=question,
-                answer=text,
-                refused=refused,
-                citations=_parse_citations(text, len(chunks)),
-                chunks=chunks,
-                latency_ms=ms,
-                mode=mode,
-                rerank=param.enable_rerank,
-                guard=guard,
-                calls=USAGE.calls - c0,
-                tokens=(USAGE.prompt_tokens - p0) + (USAGE.completion_tokens - q0),
-                cost=USAGE.cost - cost0,
-                extra={
-                    "prompt_tokens": USAGE.prompt_tokens - p0,
-                    "completion_tokens": USAGE.completion_tokens - q0,
-                    "n_chunks": len(chunks),
-                },
-            )
-
-        if not chunks:
-            return finish(REFUSAL_TEXT, True)
-
-        evidence = _evidence_block(chunks)
-
-        if guard:
-            raw = await llm_func(
-                JUDGE_PROMPT.format(question=question, evidence=evidence),
-                max_tokens=400,
-                temperature=0,
-            )
-            enough, quote = parse_verdict(raw)
-            if not enough:
-                ans = finish(REFUSAL_TEXT, True)
-                ans.extra["judge_quote"] = quote
-                return ans
-        else:
-            quote = ""
-
-        # 裁判判"足够"时手上已经有一句能对上问题的原文，直接交给作答模型当锚点：
-        # 否则它要在上万字证据里自己再找一遍，实测会偶发判自己"证据不足"而整段拒答。
-        hint = ""
-        if quote and not quote.upper().startswith("NONE"):
-            hint = "\n\n【与问题直接相关的原文】\n" + quote
-
-        text = await llm_func(
-            question,
-            system_prompt=SYSTEM_PROMPT + hint + "\n\n【证据】\n" + evidence,
+    async def judge(self, question: str, chunks: list[dict]) -> tuple[bool, str]:
+        """证据充分性判定，返回 (是否足够, 摘录的原文或 NONE)。"""
+        raw = await llm_func(
+            JUDGE_PROMPT.format(question=question, evidence=_evidence_block(chunks)),
+            max_tokens=400,
             temperature=0,
         )
-        text = (text or "").strip()
-        return finish(text, is_refusal(text))
+        return parse_verdict(raw)
+
+    async def ask(
+        self,
+        question: str,
+        mode: str = "mix",
+        rerank: bool = True,
+        guard: bool = True,
+        top_k: int = DEFAULT_TOP_K,
+        chunk_top_k: int = DEFAULT_CHUNK_TOP_K,
+    ) -> Answer:
+        t0 = time.perf_counter()
+
+        # 整个请求（含检索期的关键词抽取）都在自己的账本里记账。
+        # 用全局计数器相减在并发跑批时会串账，实测单题能算出 9 次调用、28k prompt token。
+        with track_usage() as used:
+            chunks, used_rerank = await self.retrieve(
+                question, mode=mode, rerank=rerank, top_k=top_k, chunk_top_k=chunk_top_k
+            )
+
+            def finish(text: str, refused: bool) -> Answer:
+                ms = int((time.perf_counter() - t0) * 1000)
+                return Answer(
+                    question=question,
+                    answer=text,
+                    refused=refused,
+                    citations=_parse_citations(text, len(chunks)),
+                    chunks=chunks,
+                    latency_ms=ms,
+                    mode=mode,
+                    rerank=used_rerank,
+                    guard=guard,
+                    calls=used.calls,
+                    tokens=used.total_tokens,
+                    cost=used.cost,
+                    extra={
+                        "prompt_tokens": used.prompt_tokens,
+                        "completion_tokens": used.completion_tokens,
+                        "n_chunks": len(chunks),
+                    },
+                )
+
+            if not chunks:
+                return finish(REFUSAL_TEXT, True)
+
+            quote = ""
+            if guard:
+                enough, quote = await self.judge(question, chunks)
+                if not enough:
+                    ans = finish(REFUSAL_TEXT, True)
+                    ans.extra["judge_quote"] = quote
+                    return ans
+
+            prompt, system = build_answer_prompt(question, chunks, quote)
+            text = await llm_func(prompt, system_prompt=system, temperature=0)
+            text = (text or "").strip()
+            return finish(text, is_refusal(text))
 
 
 async def _main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("-q", "--question")
     p.add_argument("--file", help="每行一个问题")
-    p.add_argument("--tag", default="noglean")
+    p.add_argument("--tag", default="prod", help="索引目录名（rag_storage/<tag>）")
     p.add_argument("--mode", default="mix", choices=["naive", "local", "global", "hybrid", "mix"])
     p.add_argument("--embed", default="local", choices=["bailian", "local"])
     p.add_argument("--no-rerank", action="store_true")

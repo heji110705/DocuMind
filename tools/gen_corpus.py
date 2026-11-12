@@ -73,7 +73,7 @@ def main():
         if not args.stats:
             (OUT / name).write_text(text, encoding="utf-8")
 
-    # 旧语料（01-06 那 5 篇）也算进来，最终块数取决于合并后的总量
+    # seed/*.md 里那 1 篇原始项目文档也算进来，最终块数取决于合并后的总量
     legacy = 0
     for p in (ROOT / "seed").glob("*.md"):
         legacy += len(p.read_text(encoding="utf-8"))
