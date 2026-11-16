@@ -197,3 +197,36 @@ docker compose up -d --build
 > 当前是**无鉴权开放模式**（`.env` 未配 `API_KEYS`）：任何拿到 IP 的人都能提问，
 > 每次提问都在消耗 `.env` 里那个 LLM key 的额度。
 > 防刷的三种办法见 README「已知限制」一节。
+
+---
+
+## 9. 模型切换（2026-11-16 实测）
+
+线上一度跑 `deepseek-chat`（按量计费），为省下额度切到**百炼 `qwen3.7-flash`**（免费额度）。
+切换不是改个环境变量就行——**千问系列默认开着思考模式**，不关会把预算全花在推理上。
+
+同一句"只回两个字：收到"的实测：
+
+| 模型 | 默认（开思考） | 加 `enable_thinking: false` |
+|---|---|---|
+| qwen3.8-max | 输出 19 token | **1 token** |
+| qwen3.7-flash | 输出 273 token | **1 token** |
+
+首字延迟从 3.8 s 降到 0.6 s。
+
+**代码侧改动**：`llm_client.py` 增加 `extra_body` 透传（`_ALLOWED` 里加一项 +
+从 `LLM_EXTRA_BODY` 读 JSON 合并进 `extra_body`）。注意**不能**直接把厂商字段
+`setdefault` 到请求参数上——openai SDK 只认它认识的顶层参数名，其余必须走 `extra_body`，
+否则报 `TypeError: unexpected keyword argument`（实测踩过，三关全挂）。
+
+**24 题同条件对照**（都关缓存、`mix_guard`、并发 2）：
+
+| 模型 | 可答率 | p50 | 调用数 |
+|---|---|---|---|
+| deepseek-chat | 75.0%（18/24） | 2.80 s | 68 |
+| qwen3.7-flash | 79.2%（19/24） | 3.17 s | 69 |
+
+差 1 题（n=24，在噪声内），延迟 +13%，调用数相同。据此切换。
+
+**已知未处理**：`PRICE_IN_PER_M` / `PRICE_OUT_PER_M` 仍是 DeepSeek 单价，
+界面上显示的 ¥ 金额对百炼不成立，只能看 token 量。

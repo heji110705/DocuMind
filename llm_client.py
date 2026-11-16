@@ -20,6 +20,7 @@ ContextVar 让每个协程（及其子任务）各记各的，才谈得上"成�
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import time
 from contextlib import contextmanager
@@ -34,7 +35,30 @@ load_dotenv(ROOT / ".env")
 
 # DeepSeek 支持这些采样参数；response_format 故意不透传——
 # LightRAG 自己的 JSON 抽取已经能容错 ```json 围栏，加了反而偶发空返回。
-_ALLOWED = {"max_tokens", "temperature", "top_p", "stop", "timeout", "seed"}
+_ALLOWED = {"max_tokens", "temperature", "top_p", "stop", "timeout", "seed", "extra_body"}
+
+
+def _vendor_extras() -> dict:
+    """厂商私有参数，从 LLM_EXTRA_BODY 读一个 JSON 对象。
+
+    为什么需要它：不同厂商把关键开关藏在私有字段里，而 OpenAI 兼容层只认
+    extra_body。最典型的例子是千问系列的思考模式——默认开着，一句
+    "只回两个字"也会先想掉几十上百个 token（实测 19~273 个），
+    关掉只需要 {"enable_thinking": false}，输出立刻降到 1 个 token。
+
+    不做成硬编码的 ENABLE_THINKING 开关，是因为换一家厂商又要改一次代码。
+    这里是"透传"，语义由调用方决定，代码不必知道厂商是谁。
+
+    解析失败一律返回空 dict 而不抛异常：一个写错的配置项不应该让整个服务起不来。
+    """
+    raw = os.environ.get("LLM_EXTRA_BODY", "").strip()
+    if not raw:
+        return {}
+    try:
+        val = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return val if isinstance(val, dict) else {}
 
 
 class Usage:
@@ -146,6 +170,16 @@ async def llm_func(
 
     opts = {k: v for k, v in kwargs.items() if k in _ALLOWED and v is not None}
     opts.setdefault("max_tokens", 4096)
+    # 环境变量里的厂商私有参数，统一塞进 extra_body。
+    # 不能直接 setdefault 到 opts 上——openai SDK 只接受它认识的顶层参数名，
+    # 其余字段一律走 extra_body 透传，否则会 TypeError: unexpected keyword argument
+    # （实测踩过：enable_thinking 被当成顶层参数直接报错，三关全挂）。
+    _extras = _vendor_extras()
+    if _extras:
+        _eb = dict(opts.get("extra_body") or {})
+        for _k, _v in _extras.items():
+            _eb.setdefault(_k, _v)
+        opts["extra_body"] = _eb
 
     # 重试次数与退避。默认 3 次（服务端用，用户最多等 6 秒）；
     # 评测跑批设 LLM_RETRIES=5（最多等 60 秒），因为一次 25 分钟的长跑
@@ -199,6 +233,16 @@ async def llm_stream(
 
     opts = {k: v for k, v in kwargs.items() if k in _ALLOWED and v is not None}
     opts.setdefault("max_tokens", 4096)
+    # 环境变量里的厂商私有参数，统一塞进 extra_body。
+    # 不能直接 setdefault 到 opts 上——openai SDK 只接受它认识的顶层参数名，
+    # 其余字段一律走 extra_body 透传，否则会 TypeError: unexpected keyword argument
+    # （实测踩过：enable_thinking 被当成顶层参数直接报错，三关全挂）。
+    _extras = _vendor_extras()
+    if _extras:
+        _eb = dict(opts.get("extra_body") or {})
+        for _k, _v in _extras.items():
+            _eb.setdefault(_k, _v)
+        opts["extra_body"] = _eb
 
     t0 = time.perf_counter()
     stream = await client().chat.completions.create(
