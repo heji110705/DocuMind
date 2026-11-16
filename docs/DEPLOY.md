@@ -230,3 +230,53 @@ docker compose up -d --build
 
 **已知未处理**：`PRICE_IN_PER_M` / `PRICE_OUT_PER_M` 仍是 DeepSeek 单价，
 界面上显示的 ¥ 金额对百炼不成立，只能看 token 量。
+
+---
+
+## 10. 开放模式的防刷闸门（2026-11-16）
+
+线上是**无鉴权**的（`.env` 未配 `API_KEYS`），任何人拿到 IP 都能提问，每次都在烧 LLM 额度。
+`app/limits.py` 加了三层限制，全部可用环境变量覆盖：
+
+| 变量 | 默认 | 含义 |
+|---|---|---|
+| `OPEN_IP_PER_MIN` | 6 | 单个 IP 每分钟最多几次 |
+| `OPEN_IP_PER_DAY` | 100 | 单个 IP 每天最多几次 |
+| `OPEN_DAILY_TOTAL` | 300 | 全站每天最多几次 |
+
+**只拦 `POST /v1/ask*`**，不拦 `/healthz`、`/readyz` 和静态资源——否则监控和首屏会被自己限流。
+
+实测（连发 9 次）：`200 200 200 200 200 200 429 429 429`，同期限流期间 `/`、`/healthz`、`/readyz` 均 200。
+
+设计上两个取舍：
+- `check` / `hit` 分两步：参数校验失败的请求不消耗额度；
+- fail-open：限流器自身异常时放行，宁可少挡一次，也不要让一个 bug 把 Demo 变成全站 500。
+
+纯内存计数，重启清零。演示场景下这比引入 Redis 划算。
+
+---
+
+## 11. 同机部署 InsightPilot（2026-11-16）
+
+两个项目共用一台 2C2G，端口分工：DocuMind `:80`、InsightPilot `:8001`。
+
+实测内存占用（`docker stats`）：
+
+| 容器 | 常驻 | 限额 |
+|---|---|---|
+| documind | 897 MiB | 1.696 GiB（compose 写的 3g 大于物理内存，等于不设限） |
+| insightpilot | **71 MiB** | 384 MiB |
+
+两个加起来还不到 1 GB，宿主剩余 399 MiB 可用。**比部署前（只剩 99 MiB）反而更宽裕**——
+因为 DocuMind 重启后重排模型是懒加载的，没有常驻。
+
+压测：并发 4 个 DocuMind 提问期间，InsightPilot 仍 78 ms 返回 200；swap 用了 405 MB 但没出现卡死。
+
+部署要点（与 DocuMind 不同、容易踩的）：
+1. `data/runtime.sqlite` 是**追踪日志库，271 MB**，不是数仓（数仓 `warehouse.sqlite` 只有 1.7 MB）。
+   上传时排除它，传输量从 273 MB 降到 4.2 MB。
+2. `FROM python:3.12-slim` 必须换国内源，原因同第 3.1 节。
+3. pip 走阿里云源，否则单包能等十几秒。
+4. `ports: "8001:8000"`——容器内仍是 8000，healthcheck 继续有效，不用改代码。
+5. `mem_limit: 384m` + `memswap_limit: 768m`：设了上限，最坏情况是它自己被 OOM kill 然后重启，
+   而不是把整机拖死（11-16 那次整机卡死就是因为没有上限）。
