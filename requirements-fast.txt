@@ -4,6 +4,10 @@
 # 装一次要几百 MB、CI 上要几分钟。而绝大部分逻辑（参数校验、鉴权配额、上传校验、
 # 提示词拼接、判分规则）都不需要它们。
 # 让"能测的部分"和"跑不动的部分"分开，CI 才会有人愿意点开看红灯。
+#
+# 注意：这个环境里没有 fastapi / lightrag / starlette。
+# 新增测试若 import app.main（或 starlette），这个 job 会红——2026-11-16 踩过一次。
+# 纯逻辑抽到不依赖 web 框架的模块里再加测试（例子见 app/upload.py）。
 pytest==9.2.0
 # llm_client 用它调 DeepSeek（计费用例需要 import 到 Usage）
 openai==3.49.0

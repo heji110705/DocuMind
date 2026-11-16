@@ -4,6 +4,8 @@
 真实 PDF 用 tests/fixtures/sample-report.pdf（3 页，含 3 个线框表格）。
 """
 
+import asyncio
+import io
 from pathlib import Path
 
 import pytest
@@ -164,27 +166,34 @@ class TestOcr:
         assert "pay_amount" in p.markdown.replace(" ", "")
 
 
-def test_read_upload_stops_at_limit():
-    """超限上传必须"读着读着就停"，而不是先吃满内存再报错（2026-11-16 修）。
+class _FakeUpload:
+    """只实现 read_upload 需要的那两个接口，避免依赖 starlette/fastapi。
 
-    用 Starlette 的 UploadFile 包一个 BytesIO，模拟 21MB 的请求体。
+    上一版这里用的是 ``starlette.datastructures.UploadFile``，还 import 了
+    ``app.main``——两者都不在 requirements-fast.txt 里，直接把 CI 的 unit job
+    弄红了（提交 c956b39）。这条测试要能在"只有 pytest"的环境里跑，才是真测试。
     """
-    import asyncio
-    import io
 
-    import pytest
-    from starlette.datastructures import UploadFile
+    def __init__(self, data: bytes) -> None:
+        self._buf = io.BytesIO(data)
+        self.size = len(data)
 
-    from app.ingest import MAX_BYTES, IngestError
+    async def read(self, n: int = -1) -> bytes:
+        return self._buf.read(n)
 
-    payload = b"x" * (MAX_BYTES + 4096)
-    big = UploadFile(file=io.BytesIO(payload), size=len(payload))
-    small = UploadFile(file=io.BytesIO(b"hello"), size=5)
 
-    from app.main import _read_upload
+def test_read_upload_stops_at_limit():
+    """超限上传必须"读着读着就停"，而不是先吃满内存再报错。
 
-    with pytest.raises(IngestError) as e:
-        asyncio.run(_read_upload(big))
-    assert e.value.status == 413 and e.value.code == "E2203"
+    对应 app/upload.py。web 层把 UploadTooLarge 翻译成 413/E2203 的那一段
+    在 app/main.py 里，需要完整依赖才能 import，所以不在这条用例的覆盖范围内。
+    """
+    from app.ingest import MAX_BYTES
+    from app.upload import UploadTooLarge, read_upload
 
-    assert asyncio.run(_read_upload(small)) == b"hello"
+    big = _FakeUpload(b"x" * (MAX_BYTES + 4096))
+    with pytest.raises(UploadTooLarge) as e:
+        asyncio.run(read_upload(big, MAX_BYTES))
+    assert e.value.max_bytes == MAX_BYTES
+
+    assert asyncio.run(read_upload(_FakeUpload(b"hello"), MAX_BYTES)) == b"hello"

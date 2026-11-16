@@ -43,6 +43,7 @@ from app.billing import bill as _bill  # noqa: E402
 from app.limits import build_from_env as _build_limiter  # noqa: E402
 from app.ingest import MAX_BYTES, IngestError, parse_document, save_bytes  # noqa: E402
 from app.params import BadRequest, read_params  # noqa: E402
+from app.upload import UploadTooLarge, read_upload  # noqa: E402
 from app.tenancy import TenantPool  # noqa: E402
 from index_stats import chunks_by_file, documents_of  # noqa: E402
 from llm_client import Usage, llm_stream, track_usage  # noqa: E402
@@ -305,33 +306,6 @@ async def index():
     return FileResponse(STATIC / "index.html")
 
 
-_UPLOAD_CHUNK = 1 << 20
-
-
-async def _read_upload(file: UploadFile) -> bytes:
-    """按块读取上传内容，超限立刻停。
-
-    为什么不是 ``await file.read()``：那会先把整个请求体读进内存，再在
-    ``save_bytes`` 里检查 20MB 上限——一个 500MB 的上传会先把内存吃光才报错。
-    在 1.7G 的机器上，这不是理论风险。
-
-    两道闸：先看 Starlette 已经算好的 ``file.size``，再边读边数。
-    声明长度可能缺失（chunked），所以后者不能省。
-    """
-    limit_mb = MAX_BYTES // 1024 // 1024
-    declared = getattr(file, "size", None)
-    if isinstance(declared, int) and declared > MAX_BYTES:
-        raise IngestError("E2203", 413, f"文件超过 {limit_mb}MB 上限")
-    buf = bytearray()
-    while True:
-        chunk = await file.read(_UPLOAD_CHUNK)
-        if not chunk:
-            break
-        buf.extend(chunk)
-        if len(buf) > MAX_BYTES:
-            raise IngestError("E2203", 413, f"文件超过 {limit_mb}MB 上限")
-    return bytes(buf)
-
 # ------------------------------------------------------------------- 增量入库
 @app.post("/v1/documents")
 async def upload_document(request: Request, file: UploadFile):
@@ -354,7 +328,10 @@ async def upload_document(request: Request, file: UploadFile):
     gate.acquire()
     t0 = time.perf_counter()
     try:
-        data = await _read_upload(file)
+        try:
+            data = await read_upload(file, MAX_BYTES)
+        except UploadTooLarge:
+            raise IngestError("E2203", 413, f"文件超过 {MAX_BYTES // 1024 // 1024}MB 上限") from None
         path = save_bytes(t.index_tag, file.filename or "", data)
         doc = parse_document(path, data, backend=os.environ.get("PDF_BACKEND", "auto"),
                              name=file.filename or "")
