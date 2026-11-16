@@ -1,0 +1,67 @@
+# 两阶段：builder 装依赖并预热模型，runtime 只带运行时产物。
+# VPS 版改动：
+# 1. 基础镜像走 1ms.run（BuildKit 不吃 daemon.json 加速配置，docker.io 在大陆被 DNS 污染）
+# 2. pip 走阿里云 PyPI 源、apt 走阿里云 Debian 源
+# 3. 预热补上 reranker（原版只预热 embedding，首次提问会现场拉 600MB）
+FROM docker.1ms.run/library/python:3.12-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/ \
+    HF_HOME=/opt/hf
+
+WORKDIR /build
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --prefix=/install -r requirements.txt
+
+# 预热：embedding + reranker 分两个层——任一成功即永久缓存，大文件（reranker 600MB）
+# 走 hf-mirror 偶发断流时只重试它自己，不连坐。fastembed 不读 HF_HOME，只认
+# FASTEMBED_CACHE_PATH（默认在 /tmp，两阶段不共享），必须显式指定再 COPY 进 runtime；
+# 导入路径以项目代码为准（fastembed 0.9.1 的 CrossEncoder 在 fastembed.rerank.cross_encoder）
+RUN PYTHONPATH=/install/lib/python3.12/site-packages \
+    HF_ENDPOINT=https://hf-mirror.com \
+    HF_HUB_ETAG_TIMEOUT=30 \
+    FASTEMBED_CACHE_PATH=/opt/fastembed-cache \
+    python -c "from fastembed import TextEmbedding; \
+TextEmbedding('BAAI/bge-small-zh-v1.5'); print('embedding cached')"
+
+RUN PYTHONPATH=/install/lib/python3.12/site-packages \
+    HF_ENDPOINT=https://hf-mirror.com \
+    HF_HUB_ETAG_TIMEOUT=30 \
+    FASTEMBED_CACHE_PATH=/opt/fastembed-cache \
+    python -c "from fastembed.rerank.cross_encoder import TextCrossEncoder; \
+TextCrossEncoder('BAAI/bge-reranker-v2-m3-int8'); print('reranker cached')"
+
+
+FROM docker.1ms.run/library/python:3.12-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/opt/hf \
+    HF_HUB_OFFLINE=1 \
+    FASTEMBED_CACHE_PATH=/opt/fastembed-cache \
+    PDF_BACKEND=pymupdf \
+    PORT=8000
+
+COPY --from=builder /install /usr/local
+COPY --from=builder /opt/fastembed-cache /opt/fastembed-cache
+
+WORKDIR /app
+COPY . .
+
+# 不用 root 跑；/app/rag_storage 与 /app/data 由 compose 挂载，权限在 entrypoint 里处理
+RUN useradd -m -u 10001 app && mkdir -p /app/rag_storage /app/data && chown -R app:app /app
+USER app
+
+EXPOSE 8000
+# 探活要从 PORT 读，别写死 8000：CMD 用的是 $PORT，写死的话改了端口容器会一直 unhealthy。
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+    CMD python -c "import os,urllib.request,sys; \
+p=os.environ.get('PORT','8000'); \
+sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{p}/healthz', timeout=2).status==200 else 1)"
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

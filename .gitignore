@@ -39,3 +39,6 @@ data/eval_*.md
 
 # 用户上传的文档（内容属于使用者，不进仓库；目录结构由 app/ingest.py 自己建）
 data/uploads/
+
+# 临时 key 文件（调试百炼端点时用），绝不入库
+.bailian_key.tmp

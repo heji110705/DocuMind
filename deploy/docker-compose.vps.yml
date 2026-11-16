@@ -1,0 +1,30 @@
+# VPS 版：阿里云试用 ECS（2C4G/2C2G，广州）专用
+# 与原仓库版的差异：
+# 1. ports 用 80:8000——HR 访问 http://IP/ 不用带端口号（安全组只需放行 80）
+# 2. rag_storage/data 改为读写挂载——原版 :ro 从未实际跑过，LightRAG 查询时
+#    会写 kv 缓存，:ro 有查询报错风险，先保证能用
+# 3. 公网裸 IP 演示：ALLOW_UPLOAD=0 关上传入口护 DeepSeek 配额；RERANK_THREADS=2 对齐 2 vCPU
+services:
+  documind:
+    build: .
+    image: documind:1.5
+    ports:
+      - "80:8000"
+    env_file:
+      - .env
+    environment:
+      PDF_BACKEND: pymupdf
+      TAG: prod
+      ALLOW_UPLOAD: "0"
+      RERANK_THREADS: "2"
+    volumes:
+      - ./rag_storage:/app/rag_storage
+      - ./data:/app/data
+    restart: unless-stopped
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s

@@ -1,5 +1,9 @@
 # DocuMind
 
+**在线 Demo：<http://8.163.90.97/>**（阿里云 ECS 2C2G + Docker Compose，点开即用，无需注册）
+· 部署过程与踩坑记录见 [`docs/DEPLOY.md`](docs/DEPLOY.md)
+· 评测原始数据见 [`docs/RESULTS-COLD-HOT.md`](docs/RESULTS-COLD-HOT.md)
+
 基于 LightRAG 二次开发的文档问答系统：**段落级引用、证据不足拒答、全链路成本可计量**。
 在 100,842 字 / 122 块的中文技术文档上，用 **316 道金标题（256 可答 + 60 必拒）**做消融，
 验证图谱召回 / 重排 / 证据判定各自贡献多少；另带多轮对话、增量索引、多租户配额、

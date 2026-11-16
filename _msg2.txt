@@ -1,0 +1,32 @@
+部署产物并入仓库：DEPLOY.md + deploy/ 定制文件 + Live Demo
+
+为什么要做这一步
+----------------
+线上 /opt/documind 的部署知识此前只存在于聊天记录里：全目录 grep 8.163.90.97
+零命中，README 没有部署章节，任一同事拿到仓库也复现不出线上环境。
+更危险的是服务器上那两份文件是部署定制版（80:8000 / ALLOW_UPLOAD=0 /
+RERANK_THREADS=2 / 读写挂载），本地仓库没有副本，一旦机器出了事就没了。
+
+本次内容
+--------
+- docs/DEPLOY.md：完整部署手册。四条踩坑（DNS 污染 + BuildKit 不吃 daemon.json、
+  fastembed 只认 FASTEMBED_CACHE_PATH、2C2G 构建期 swap 死亡螺旋、reranker 未预热）、
+  三种改动对应的三条命令、两种同步通道（git / rsync 及必须排除的文件）、
+  内存约束与 2026-11-16 那次真实宕机的处置记录、从零部署步骤。
+- deploy/Dockerfile.vps 与 deploy/docker-compose.vps.yml：从线上 scp 回来的副本，
+  与服务器文件 diff 无差异。这样"服务器配置"第一次进了版本控制。
+- README 顶部加在线 Demo 链接与两个文档入口。
+
+一处口径更正
+------------
+此前两份梳理材料都说"本地 publish/vps-documind 已与线上不一致"。
+实测 diff：**完全相同**，两边都写 docker.1ms.run。所以不存在"本地包过时"，
+真正的风险只有一条——该镜像源时好时坏，缓存丢了就得先确认它可用。
+
+顺带记录的稳定性事实
+--------------------
+容器常驻 1.2 GiB（单进程 1215 MB），宿主物理内存 1.7 GiB，余量约 350 MB。
+compose 里 mem_limit: 3g 大于物理内存，等于不设限。
+2026-11-16 下午站点整机卡死（HTTP 30s 无响应、SSH banner 超时、
+Workbench 连不上，但控制台显示运行中），靠强制重启恢复。
+已加 2G swap（合计 4G）并把 vm.swappiness 降到 10。根因缓解但未根治。
