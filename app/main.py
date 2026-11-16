@@ -40,6 +40,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from app import mime  # noqa: E402
 from app.auth import AuthError, Gate, Tenant, parse_keys, resolve  # noqa: E402
 from app.billing import bill as _bill  # noqa: E402
+from app.limits import build_from_env as _build_limiter  # noqa: E402
 from app.ingest import IngestError, parse_document, save_bytes  # noqa: E402
 from app.params import BadRequest, read_params  # noqa: E402
 from app.tenancy import TenantPool  # noqa: E402
@@ -92,6 +93,12 @@ async def lifespan(app: FastAPI):
         raise SystemExit(f"[FAIL] API_KEYS 配置有误：{e}")
     STATE["keys"] = tenants
     STATE["base_tag"] = base_tag
+    # 防刷闸门。配了 API_KEYS 时它仍然生效，但意义不大——有鉴权的场景
+    # 由租户配额负责；它的主场是"无鉴权开放演示"，那种场景没人能靠 key 挡。
+    STATE["limiter"] = _build_limiter()
+    _lim = STATE["limiter"].snapshot()
+    print(f"[limit] 每 IP {_lim['per_min'] or '不限'} 次/分、"
+          f"{_lim['per_day'] or '不限'} 次/日；全站 {_lim['daily_total'] or '不限'} 次/日")
 
     pool = TenantPool(
         embed="local",
@@ -115,6 +122,30 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="DocuMind", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.middleware("http")
+async def _open_mode_limit(request: Request, call_next):
+    """开放演示模式的防刷闸门。只拦问句接口，不拦静态资源和健康检查。
+
+    为什么放在中间件而不是每个路由里：三个问句入口（/v1/ask、/v1/ask/stream、
+    以及带鉴权的同路径）共用同一套限制，写在路由里必然漏一个。
+    为什么只匹配 "/v1/ask" 前缀：/healthz、/readyz、静态页都必须无限制，
+    否则监控告警和首屏加载会被自己限流。
+    """
+    limiter = STATE.get("limiter")
+    if limiter is not None and request.method == "POST" \
+            and request.url.path.startswith("/v1/ask"):
+        ip = request.client.host if request.client else "unknown"
+        ok, wait, why = limiter.check(ip)
+        if not ok:
+            return JSONResponse(
+                {"error": {"code": "E4290", "message": why, "retry_after": wait}},
+                status_code=429,
+                headers={"Retry-After": str(wait)},
+            )
+        limiter.hit(ip)
+    return await call_next(request)
 
 
 @app.exception_handler(AuthError)
