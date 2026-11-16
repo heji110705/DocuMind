@@ -1,9 +1,10 @@
 # 两阶段：builder 装依赖并预热模型，runtime 只带运行时产物。
 # VPS 版改动：
-# 1. 基础镜像走 1ms.run（BuildKit 不吃 daemon.json 加速配置，docker.io 在大陆被 DNS 污染）
+# 1. 基础镜像走 daocloud 镜像站（BuildKit 不吃 daemon.json 加速配置，docker.io 在大陆被 DNS 污染；
+#    原先用的 1ms.run 是第三方加速站，稳定性无保证，2026-11-16 换掉并实测可拉取）
 # 2. pip 走阿里云 PyPI 源、apt 走阿里云 Debian 源
 # 3. 预热补上 reranker（原版只预热 embedding，首次提问会现场拉 600MB）
-FROM docker.1ms.run/library/python:3.12-slim AS builder
+FROM docker.m.daocloud.io/library/python:3.12-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -37,7 +38,7 @@ RUN PYTHONPATH=/install/lib/python3.12/site-packages \
 TextCrossEncoder('BAAI/bge-reranker-v2-m3-int8'); print('reranker cached')"
 
 
-FROM docker.1ms.run/library/python:3.12-slim AS runtime
+FROM docker.m.daocloud.io/library/python:3.12-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

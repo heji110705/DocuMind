@@ -47,12 +47,18 @@ BuildKit 构建时也不读它——它只影响 `docker pull`。
 所以 `FROM` 必须直写镜像源：
 
 ```dockerfile
-FROM docker.1ms.run/library/python:3.12-slim AS builder
+FROM docker.m.daocloud.io/library/python:3.12-slim AS builder
 ```
 
-> ⚠️ **已知风险**：`docker.1ms.run` 这条通道时好时坏。线上镜像已经构建好了，
-> 增量重建不会重新拉基础层（有缓存）。但**一旦执行 `docker system prune -a`
-> 或缓存丢失，就必须先确认这个源还能用**，否则会卡在拉取。
+> 最初用的是 `docker.1ms.run`，2026-11-16 换成了 daocloud。原因：前者是第三方加速站，
+> 稳定性没有保证，而它失效时的报错是 DNS/超时，很容易被误读成"网络问题"。
+> 换源当天的验证方式不是"改完重建"，而是先单独跑
+> `docker pull docker.m.daocloud.io/library/python:3.12-slim`——拉得下来，才说明源是活的；
+> 改完立刻全量重建的话，失败一次就是站点下线。
+>
+> **注意**：改 `FROM` 会让构建缓存全部失效（镜像名变了，层全不命中）。
+> 所以这次只改了仓库与服务器上的 Dockerfile，**没有立即重建 documind**——
+> 它下次构建时才会走新源，那次构建会是全量重装（依赖 + 600MB 模型预热）。
 
 ### 3.2 `fastembed` 不读 `HF_HOME`，只认 `FASTEMBED_CACHE_PATH`
 
