@@ -162,3 +162,29 @@ class TestOcr:
         assert p.ocr_confidence and p.ocr_confidence > 0.5
         # NFKC 归一化：OCR 会把等宽的 pay_amount 认成全角，不归一化就搜不到
         assert "pay_amount" in p.markdown.replace(" ", "")
+
+
+def test_read_upload_stops_at_limit():
+    """超限上传必须"读着读着就停"，而不是先吃满内存再报错（2026-11-16 修）。
+
+    用 Starlette 的 UploadFile 包一个 BytesIO，模拟 21MB 的请求体。
+    """
+    import asyncio
+    import io
+
+    import pytest
+    from starlette.datastructures import UploadFile
+
+    from app.ingest import MAX_BYTES, IngestError
+
+    payload = b"x" * (MAX_BYTES + 4096)
+    big = UploadFile(file=io.BytesIO(payload), size=len(payload))
+    small = UploadFile(file=io.BytesIO(b"hello"), size=5)
+
+    from app.main import _read_upload
+
+    with pytest.raises(IngestError) as e:
+        asyncio.run(_read_upload(big))
+    assert e.value.status == 413 and e.value.code == "E2203"
+
+    assert asyncio.run(_read_upload(small)) == b"hello"

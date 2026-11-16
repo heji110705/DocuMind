@@ -126,14 +126,19 @@ def parse_keys(spec: str | None, base_tag: str) -> dict[str, Tenant]:
     return out
 
 
-def resolve(header: str | None, tenants: dict[str, Tenant], base_tag: str) -> Tenant:
+def resolve(header: str | None, tenants: dict[str, Tenant], base_tag: str,
+            *, default_concurrency: int = 4) -> Tenant:
     """从请求头取租户。
 
     没配置 key → 开放模式，返回默认租户（本地演示零配置）。
     配置了 key → 必须带对，错和缺都回 401 且**不区分**，避免用错误信息探测 key。
+
+    ``default_concurrency`` 只作用于开放模式。原来是写死的 2，演示时两三个人
+    同时点，第三个就吃 429「并发已满」——看起来像服务挂了。开放模式没有配额可依，
+    并发是唯一的安全阀，所以做成可配（OPEN_CONCURRENCY，默认 4）。
     """
     if not tenants:
-        return Tenant(tid="default", index_tag=base_tag)
+        return Tenant(tid="default", index_tag=base_tag, concurrency=max(1, default_concurrency))
 
     raw = (header or "").strip()
     if raw.lower().startswith("bearer "):

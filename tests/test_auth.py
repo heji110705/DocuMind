@@ -59,6 +59,16 @@ class TestResolve:
         t = resolve(None, {}, BASE)
         assert (t.tid, t.index_tag) == ("default", BASE)
 
+    def test_open_mode_concurrency_is_configurable(self):
+        """开放模式的并发上限原来是写死的 2，两三个人同时点就 429。
+
+        现在默认 4、可用 OPEN_CONCURRENCY 覆盖；这条测试钉住"传进去就生效"，
+        免得哪天又被写死回去。
+        """
+        assert resolve(None, {}, BASE).concurrency == 4
+        assert resolve(None, {}, BASE, default_concurrency=8).concurrency == 8
+        assert resolve(None, {}, BASE, default_concurrency=0).concurrency == 1
+
     def test_missing_key_is_401(self):
         ts = parse_keys("sk-aaaaaaaa:demo", BASE)
         with pytest.raises(AuthError) as e:

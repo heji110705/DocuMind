@@ -41,7 +41,7 @@ from app import mime  # noqa: E402
 from app.auth import AuthError, Gate, Tenant, parse_keys, resolve  # noqa: E402
 from app.billing import bill as _bill  # noqa: E402
 from app.limits import build_from_env as _build_limiter  # noqa: E402
-from app.ingest import IngestError, parse_document, save_bytes  # noqa: E402
+from app.ingest import MAX_BYTES, IngestError, parse_document, save_bytes  # noqa: E402
 from app.params import BadRequest, read_params  # noqa: E402
 from app.tenancy import TenantPool  # noqa: E402
 from index_stats import chunks_by_file, documents_of  # noqa: E402
@@ -67,7 +67,25 @@ def _err(code: str, status: int, message: str, **extra) -> JSONResponse:
 
 # ------------------------------------------------------------------- 多租户
 def _tenant(request: Request) -> Tenant:
-    return resolve(request.headers.get("x-api-key"), STATE.get("keys") or {}, STATE["base_tag"])
+    return resolve(
+        request.headers.get("x-api-key"), STATE.get("keys") or {}, STATE["base_tag"],
+        default_concurrency=int(os.environ.get("OPEN_CONCURRENCY", "4")),
+    )
+
+
+def _client_ip(request: Request) -> str:
+    """取访客 IP。
+
+    先用 ``X-Forwarded-For``：现在直连（iptables DNAT 保留源地址），它为空，
+    走 client.host；将来前面挂 nginx/Cloudflare 时，client.host 会变成网关地址，
+    所有人塌进同一个桶，限流等于失效——这一行就是给那天准备的。
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        first = forwarded.split(",")[0].strip()
+        if first:
+            return first
+    return request.client.host if request.client else "unknown"
 
 
 def _gate(t: Tenant) -> Gate:
@@ -120,7 +138,17 @@ async def lifespan(app: FastAPI):
     await pool.close_all()
 
 
-app = FastAPI(title="DocuMind", lifespan=lifespan)
+# 自动文档默认关闭：/docs 会把全部接口列在公网上（含 /v1/documents 这类写接口），
+# 对公开演示等于一张"这里还能这么调"的地图。需要时 DOCS=1 打开。
+_DOCS_ON = os.environ.get("DOCS", "0").strip() == "1"
+
+app = FastAPI(
+    title="DocuMind",
+    lifespan=lifespan,
+    docs_url="/docs" if _DOCS_ON else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if _DOCS_ON else None,
+)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
@@ -136,7 +164,7 @@ async def _open_mode_limit(request: Request, call_next):
     limiter = STATE.get("limiter")
     if limiter is not None and request.method == "POST" \
             and request.url.path.startswith("/v1/ask"):
-        ip = request.client.host if request.client else "unknown"
+        ip = _client_ip(request)
         ok, wait, why = limiter.check(ip)
         if not ok:
             return JSONResponse(
@@ -144,7 +172,12 @@ async def _open_mode_limit(request: Request, call_next):
                 status_code=429,
                 headers={"Retry-After": str(wait)},
             )
-        limiter.hit(ip)
+        response = await call_next(request)
+        # 只有真正被处理了才记账：参数校验失败（400）不该吃掉访客的额度。
+        # 这样也与 InsightPilot 的限流口径一致，两边不再各说各话。
+        if response.status_code < 400:
+            limiter.hit(ip)
+        return response
     return await call_next(request)
 
 
@@ -272,6 +305,33 @@ async def index():
     return FileResponse(STATIC / "index.html")
 
 
+_UPLOAD_CHUNK = 1 << 20
+
+
+async def _read_upload(file: UploadFile) -> bytes:
+    """按块读取上传内容，超限立刻停。
+
+    为什么不是 ``await file.read()``：那会先把整个请求体读进内存，再在
+    ``save_bytes`` 里检查 20MB 上限——一个 500MB 的上传会先把内存吃光才报错。
+    在 1.7G 的机器上，这不是理论风险。
+
+    两道闸：先看 Starlette 已经算好的 ``file.size``，再边读边数。
+    声明长度可能缺失（chunked），所以后者不能省。
+    """
+    limit_mb = MAX_BYTES // 1024 // 1024
+    declared = getattr(file, "size", None)
+    if isinstance(declared, int) and declared > MAX_BYTES:
+        raise IngestError("E2203", 413, f"文件超过 {limit_mb}MB 上限")
+    buf = bytearray()
+    while True:
+        chunk = await file.read(_UPLOAD_CHUNK)
+        if not chunk:
+            break
+        buf.extend(chunk)
+        if len(buf) > MAX_BYTES:
+            raise IngestError("E2203", 413, f"文件超过 {limit_mb}MB 上限")
+    return bytes(buf)
+
 # ------------------------------------------------------------------- 增量入库
 @app.post("/v1/documents")
 async def upload_document(request: Request, file: UploadFile):
@@ -285,11 +345,16 @@ async def upload_document(request: Request, file: UploadFile):
         # 容器里索引是只读挂载（compose 的 :ro），此时写入会失败但报错很难懂。
         # 显式关掉上传，给出能看懂的原因。
         return _err("E2210", 403, "该实例关闭了上传（ALLOW_UPLOAD=0），索引按只读挂载")
+    # 声明长度明显超限时，连请求体都不读，直接 413（多留 8KB 给 multipart 头）
+    declared_len = request.headers.get("content-length", "")
+    if declared_len.isdigit() and int(declared_len) > MAX_BYTES + 8192:
+        raise IngestError("E2203", 413, f"文件超过 {MAX_BYTES // 1024 // 1024}MB 上限")
+
     gate = _gate(t)
     gate.acquire()
     t0 = time.perf_counter()
     try:
-        data = await file.read()
+        data = await _read_upload(file)
         path = save_bytes(t.index_tag, file.filename or "", data)
         doc = parse_document(path, data, backend=os.environ.get("PDF_BACKEND", "auto"),
                              name=file.filename or "")
