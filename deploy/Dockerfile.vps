@@ -37,6 +37,11 @@ RUN PYTHONPATH=/install/lib/python3.12/site-packages \
     python -c "from fastembed.rerank.cross_encoder import TextCrossEncoder; \
 TextCrossEncoder('BAAI/bge-reranker-v2-m3-int8'); print('reranker cached')"
 
+# LCEL 编排只多一个包。**必须放在两个预热层之后**：放在前面会让 reranker 那层
+# （约 600MB 下载）的缓存整体失效，实测一次重建卡了 12 分钟（2026-11-17 踩过）。
+COPY requirements-lcel.txt .
+RUN pip install --prefix=/install -r requirements-lcel.txt
+
 
 FROM docker.m.daocloud.io/library/python:3.12-slim AS runtime
 

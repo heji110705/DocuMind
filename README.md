@@ -1410,3 +1410,90 @@ async function x() {}
 这也是为什么 `tests/test_static.py` 里多了一条
 `test_module_check_would_catch_duplicate_binding`：**给检查器本身写测试**。
 一个永远绿的检查器，比没有检查器更危险，因为它会让人以为已经检查过了。
+
+---
+
+## 18. 检索编排换成 LCEL，以及向量索引选型（2026-11-18）
+
+这一节回答两个问题：**"mix 链路能不能用 LangChain LCEL 重写、代价多少"**，
+以及**"把 nano-vectordb 换成 pgvector，索引该怎么选"**。两个都给了实测数字，没有一处是估算。
+
+### 18.1 LCEL 编排：`retrieval_lcel.py`
+
+外层重写，不动 LightRAG 源码。开关是环境变量 `RETRIEVAL_IMPL`（默认 `lcel`，设 `lightrag` 即回退）。
+
+四步：`RunnableParallel` 并发跑 naive / local / global 三条检索 → 按正文哈希去重合并 →
+`bge-reranker` 重排 → 截断到 `chunk_top_k`。只对 `mode=mix` 生效，其它 mode 仍走 LightRAG。
+
+**先说清一件事：它不是 LightRAG mix 的等价实现。**
+读 `lightrag/operate.py` 的 mix 分支可以看到，原生 mix 是**一次关键词抽取** → local 走实体、
+global 走关系、再加一路纯向量 chunks，然后在内部合并。而这里的三条检索各自是独立的完整
+mode 调用，所以召回集合不同、调用次数也不同（下表的 calls/题 就是证据）。
+
+A/B 口径：`eval_set_v2` 里的 **94 道可答题**（30 道必拒题不调作答模型，省额度），
+同一台 2C2G、并发 2、`LLM_CACHE=0`（冷启动）、模型 `qwen3.8-flash`、
+单价按 0.8 / 2.7 元每百万 token 折算。
+
+| 指标 | 原 mix（lightrag） | LCEL 编排 | 差异 |
+|---|---|---|---|
+| 可答率 | **80.9%（76/94）** | **80.9%（76/94）** | 完全相同 |
+| p50 延迟 | 2,202 ms | 2,206 ms | +4 ms（噪声内） |
+| 单题 token | 4,272 | 4,914 | **+15%** |
+| 单题成本 | ¥0.00358 | ¥0.00417 | **+16.5%** |
+| 模型调用/题 | 2.00 | **3.00** | +1 次（多出来的关键词抽取） |
+| 引用率 | 98.8% | **100%** | +1.2pp |
+| 平均证据块 | 6.0 | 6.0 | 一致 |
+
+**结论**：LCEL 版**在准确率上没有增益**（76/94 一模一样），代价是每题多一次模型调用、
+成本 +16.5%。唯一可量化的好处是引用率 98.8% → 100%。所以这个开关的价值是
+**"编排层可替换、可并行、可单独观测"**，不是"更准"——把它当成架构能力，不要当成效果优化。
+
+### 18.2 向量索引：pgvector 的 HNSW vs IVFFlat
+
+**先说结论性事实**：LightRAG 1.5.7 **没有 pgvector 后端**。
+`lightrag/kg/` 下只有 `nano_vector_db_impl` / `faiss_impl` / `milvus_impl` / `neo4j_impl` /
+`mongo_impl` / `memgraph_impl`，没有 postgres。所以这里走独立 bench，不接主链路。
+（Milvus standalone 要 etcd + minio + milvus 三个容器、≥4GB，这台 1.7GB 的机器装不下；
+Milvus Lite 只支持 FLAT，测不出索引差异。）
+
+Bench 口径：现有 `vdb_chunks.json` 里 **122 块**的向量（512 维、归一化，从 LightRAG 的
+base64+zlib+float16 存储里原样解出来，不重新 embedding），**94 条查询**用同一个
+`bge-small-zh-v1.5` 现算。基线是关掉索引的精确全表扫描。`pgvector/pgvector:pg16` 单容器，
+`mem_limit 256m`，跑完即删。
+
+| 索引 | recall@10 | p50 | p99 | max | 索引体积 |
+|---|---|---|---|---|---|
+| 精确扫描（基线） | 1.000（定义） | 0.347 ms | 0.526 ms | — | — |
+| **HNSW**（m=16, ef_construction=200, ef_search=40） | **1.000** | 0.161 ms | 0.433 ms | 0.706 ms | **336 kB** |
+| **IVFFlat**（lists=100, probes=10） | **0.922** | 0.086 ms | 0.138 ms | 0.349 ms | 1,088 kB |
+
+**怎么读这张表**：
+
+1. **122 块这个规模下，索引的收益是"毫秒级里的小数点"**：精确扫描 p50 0.347 ms，
+   HNSW 0.161 ms。省 0.19 ms —— 而一次问答里 rerank 要几百毫秒、LLM 要几秒。
+   **索引不是这个项目的瓶颈，检索算法的差别在这里被答题链路完全淹没。**
+2. **HNSW 在小数据上 recall 满分**，代价是索引体积 3 倍于 IVFFlat、p50 慢一倍（仍是亚毫秒）。
+3. **IVFFlat 的 0.922 是"lists 设错"的典型症状**：122 行切成 100 个簇，平均每簇 1.2 行，
+   `probes=10` 只探到约 10% 的数据。这个配置在万级以上才合理；小数据上它更快是因为
+   **它压根没扫全**，快得没有意义。
+4. **结论：这个规模不需要向量索引。** 判断依据不是"哪个 recall 高"，而是
+   "精确扫描 0.35 ms 已经低于任何一次 LLM 调用的抖动"。真到十万块量级再谈 HNSW，
+   那时 `m=16 / ef_construction=200` 是好起点，`ef_search` 才是要调的旋钮。
+
+### 18.3 怎么回退
+
+| 要回到 | 操作 |
+|---|---|
+| 原 mix 检索 | 环境变量 `RETRIEVAL_IMPL=lightrag`，重启容器（不用重建镜像） |
+| 彻底删掉 LCEL | 删 `retrieval_lcel.py` + 把 `query.py::_retrieve` 里的分发分支去掉（改动前是单实现 `_retrieve`） |
+
+### 18.4 内存实测（`docker stats`）
+
+| 时点 | documind | insightpilot | 宿主 available |
+|---|---|---|---|
+| A/B 之前（刚重启） | 73.7 MiB | 16.0 MiB | 1,086 MB |
+| A/B 之后（跑过 188 题） | **209.1 MiB** | 22.7 MiB | 1,012 MB |
+| pgvector bench 容器（临时） | — | — | 69 MiB（上限 256 MiB），跑完已删 |
+
+LCEL 只多了**一次并行检索**，没有新增常驻模型，所以峰值内存与原来同一量级；
+增量主要来自 reranker 首次使用后的加载，不是 LCEL 本身。

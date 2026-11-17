@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -54,6 +55,8 @@ from query_consts import (DEFAULT_CHUNK_TOP_K, DEFAULT_TOP_K,  # noqa: E402,F401
                           MAX_QUESTION, MODES, REFUSAL_HINTS, REFUSAL_TEXT)
 from rerankers import get_model as get_reranker  # noqa: E402
 from rerankers import local_rerank  # noqa: E402
+
+logger = logging.getLogger("documind.query")
 
 # ------------------------------------------------------------------ 数据结构
 @dataclass
@@ -121,6 +124,11 @@ class DocuMind:
         self.embed_backend = embed
         self.use_rerank = use_rerank
         self.rag: LightRAG | None = None
+        # LCEL 链按 (top_k, chunk_top_k, rerank) 缓存：参数变了要重建，
+        # 否则同一个 DocuMind 实例上先来一个 top_k=10、再来一个 top_k=20 的请求，
+        # 后者会静默沿用前者的候选池。
+        self._lcel_chain = None
+        self._lcel_key: tuple | None = None
         # 检索锁：由服务端注入（见 app/main.py）。评测和 CLI 不设，
         # 因为它们本来就是串行/受控并发，加锁只会把跑批拖长。
         self.lock: asyncio.Lock | None = None
@@ -196,6 +204,40 @@ class DocuMind:
             return await self._retrieve(question, mode, rerank, top_k, chunk_top_k)
 
     async def _retrieve(
+        self, question: str, mode: str, rerank: bool, top_k: int, chunk_top_k: int
+    ) -> tuple[list[dict], bool]:
+        """按 RETRIEVAL_IMPL 分发。默认 lcel，设成 lightrag 即回到改动前的行为。"""
+        impl = (os.environ.get("RETRIEVAL_IMPL") or "lcel").strip().lower()
+        if mode == "mix" and impl == "lcel":
+            try:
+                return await self._retrieve_lcel(question, rerank, top_k, chunk_top_k)
+            except Exception as e:                     # noqa: BLE001
+                # 编排层出错不该让整个问答不可用：记一行、退回原实现。
+                # 注意这会让 A/B 的数字悄悄退化成 lightrag，所以日志足够显眼。
+                logger.warning("[lcel] 编排失败，退回 LightRAG mix：%s: %s", type(e).__name__, e)
+        return await self._retrieve_lightrag(question, mode, rerank, top_k, chunk_top_k)
+
+    async def _retrieve_lcel(
+        self, question: str, rerank: bool, top_k: int, chunk_top_k: int
+    ) -> tuple[list[dict], bool]:
+        """LCEL 版 mix：三条检索并发 → 合并去重 → 重排 → 截断。"""
+        assert self.rag is not None, "先 await open()"
+        from retrieval_lcel import build_chain
+
+        key = (top_k, chunk_top_k, bool(rerank and self.use_rerank))
+        if self._lcel_chain is None or self._lcel_key != key:
+            self._lcel_chain = build_chain(
+                rag=self.rag,
+                top_k=top_k,
+                chunk_top_k=chunk_top_k,
+                enable_rerank=key[2],
+                rerank_func=local_rerank,
+            )
+            self._lcel_key = key
+        out = await self._lcel_chain.ainvoke({"question": question})
+        return out.get("chunks") or [], bool(out.get("used_rerank"))
+
+    async def _retrieve_lightrag(
         self, question: str, mode: str, rerank: bool, top_k: int, chunk_top_k: int
     ) -> tuple[list[dict], bool]:
         param = QueryParam(

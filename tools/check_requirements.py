@@ -62,6 +62,8 @@ OPTIONAL = {
     "docling": "PDF 版面后端，由 _has_docling() 探测；装不上自动降级到 pymupdf（见 README 第 10 节）",
     "pytesseract": "OCR 的备选后端，只有系统里存在 tesseract 可执行文件才会被导入",
     "rapidocr_onnxruntime": "OCR 主后端，单独放在 requirements-ocr.txt，不进主镜像",
+    "langchain_core": "LCEL 编排（retrieval_lcel.py）专用，单独放在 requirements-lcel.txt："
+                      "写进 requirements.txt 会让 lightrag 那一层缓存失效，重建从 20 秒变十几分钟",
 }
 
 # 只在开发脚本里用（tools/ 下的录屏与调试工具），不进运行时依赖。

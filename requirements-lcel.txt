@@ -1,0 +1,12 @@
+# LCEL 编排（retrieval_lcel.py）额外的依赖，只有一条。
+#
+# 为什么不写进 requirements.txt：
+#   requirements.txt 是重依赖层（lightrag + fastembed + onnxruntime，装一次十几分钟），
+#   往里加一行就会让那一层整体失效，每次改动都要重装全家桶——2C2G 上实测 12 分钟还没完。
+#   单独一个文件 + 单独一层，改它只重跑这一层（约 20 秒）。
+#
+# 为什么不能靠 lightrag 的传递依赖：
+#   本地 pip 解析会带进 langchain-core，但镜像里实测**没有**
+#   （2026-11-17：documind 容器内 ModuleNotFoundError: langchain_core）。
+#   靠传递依赖拿到的东西，换个解析器就没了。
+langchain-core==1.7.7

@@ -1,0 +1,1153 @@
+{
+  "meta": {
+    "version": 2,
+    "corpus": "seed/insightpilot-docs-plus.md + seed/v2/*.md（23 篇，104,603 字，116 块 @600/80）",
+    "answerable": 94,
+    "unanswerable": 30,
+    "judge": "关键词命中（每组至少命中一个，组间 AND），不使用 LLM 打分",
+    "taxonomy": "按能力类型分层：grain/pitfall/metric/guard/error/api/quota/ops/auth/quality/eval/arch",
+    "note": "仅保留可答题（type=fact），用于省钱版 A/B；不改 v2 本体",
+    "derived_from": "eval_set_v2.json"
+  },
+  "items": [
+    {
+      "id": "Q001",
+      "type": "fact",
+      "task": "grain",
+      "q": "fact_order 这张表的粒度是什么？",
+      "must_include": [
+        [
+          "一单一书",
+          "订单行"
+        ]
+      ]
+    },
+    {
+      "id": "Q002",
+      "type": "fact",
+      "task": "pitfall",
+      "q": "订单数直接用 COUNT(*) 不去重，会高估多少？",
+      "must_include": [
+        [
+          "28"
+        ],
+        [
+          "订单"
+        ]
+      ]
+    },
+    {
+      "id": "Q003",
+      "type": "fact",
+      "task": "scale",
+      "q": "dim_book 一共有多少行？",
+      "must_include": [
+        [
+          "42,180",
+          "42180"
+        ]
+      ]
+    },
+    {
+      "id": "Q004",
+      "type": "fact",
+      "task": "unit",
+      "q": "dim_book 的 rating_avg 用的是几分制？",
+      "must_include": [
+        [
+          "0-10",
+          "10 分"
+        ]
+      ]
+    },
+    {
+      "id": "Q005",
+      "type": "fact",
+      "task": "pitfall",
+      "q": "评分类指标不过滤 is_valid 会让数值虚高多少？",
+      "must_include": [
+        [
+          "3.2"
+        ]
+      ]
+    },
+    {
+      "id": "Q006",
+      "type": "fact",
+      "task": "field",
+      "q": "计算 DAU 时应该用哪个字段去重？",
+      "must_include": [
+        [
+          "device_id"
+        ]
+      ]
+    },
+    {
+      "id": "Q007",
+      "type": "fact",
+      "task": "pitfall",
+      "q": "fact_click 里没有登录态的事件占多少比例？",
+      "must_include": [
+        [
+          "31%"
+        ]
+      ]
+    },
+    {
+      "id": "Q008",
+      "type": "fact",
+      "task": "pitfall",
+      "q": "用 list_price 乘数量算 GMV，会系统性高估多少？",
+      "must_include": [
+        [
+          "18%"
+        ]
+      ]
+    },
+    {
+      "id": "Q009",
+      "type": "fact",
+      "task": "field",
+      "q": "fact_order 里赠品的 book_id 有什么特征？",
+      "must_include": [
+        [
+          "负值"
+        ]
+      ]
+    },
+    {
+      "id": "Q010",
+      "type": "fact",
+      "task": "rule",
+      "q": "订单满多少元包邮？",
+      "must_include": [
+        [
+          "99"
+        ],
+        [
+          "包邮"
+        ]
+      ]
+    },
+    {
+      "id": "Q011",
+      "type": "fact",
+      "task": "rule",
+      "q": "不满包邮门槛时运费是多少？",
+      "must_include": [
+        [
+          "8 元",
+          "8元",
+          "8"
+        ]
+      ]
+    },
+    {
+      "id": "Q012",
+      "type": "fact",
+      "task": "formula",
+      "q": "discount_amount 和 pay_amount、freight 的关系是什么？",
+      "must_include": [
+        [
+          "freight"
+        ],
+        [
+          "list_amount"
+        ]
+      ]
+    },
+    {
+      "id": "Q013",
+      "type": "fact",
+      "task": "pitfall",
+      "q": "做周同比时，除了 iso_week 还必须用哪个字段？",
+      "must_include": [
+        [
+          "iso_year"
+        ]
+      ]
+    },
+    {
+      "id": "Q014",
+      "type": "fact",
+      "task": "schema",
+      "q": "dim_category 一共几级分类？",
+      "must_include": [
+        [
+          "两级",
+          "2 级",
+          "二级"
+        ]
+      ]
+    },
+    {
+      "id": "Q015",
+      "type": "fact",
+      "task": "scale",
+      "q": "dim_date 覆盖到哪一年为止？",
+      "must_include": [
+        [
+          "2027"
+        ]
+      ]
+    },
+    {
+      "id": "Q016",
+      "type": "fact",
+      "task": "enum",
+      "q": "bridge_book_tag 的 tag_type 有哪几种取值？",
+      "must_include": [
+        [
+          "editorial"
+        ],
+        [
+          "campaign"
+        ]
+      ]
+    },
+    {
+      "id": "Q017",
+      "type": "fact",
+      "task": "enum",
+      "q": "fact_click 里已废弃、但仍残留在 2023 年数据里的事件类型是什么？",
+      "must_include": [
+        [
+          "view"
+        ]
+      ]
+    },
+    {
+      "id": "Q018",
+      "type": "fact",
+      "task": "field",
+      "q": "fact_order 的 stat_date 是怎么来的？",
+      "must_include": [
+        [
+          "派生",
+          "pay_time"
+        ]
+      ]
+    },
+    {
+      "id": "Q019",
+      "type": "fact",
+      "task": "pitfall",
+      "q": "出版社更名后会换 publisher_id 吗？",
+      "must_include": [
+        [
+          "不换",
+          "不变",
+          "保留"
+        ]
+      ]
+    },
+    {
+      "id": "Q020",
+      "type": "fact",
+      "task": "ratio",
+      "q": "dim_author 里 country 为「未知」的占比是多少？",
+      "must_include": [
+        [
+          "23%"
+        ]
+      ]
+    },
+    {
+      "id": "Q021",
+      "type": "fact",
+      "task": "metric",
+      "q": "gmv_net 会扣掉退款中的订单吗？",
+      "must_include": [
+        [
+          "仍计入",
+          "不扣",
+          "只有 refunded"
+        ]
+      ]
+    },
+    {
+      "id": "Q022",
+      "type": "fact",
+      "task": "metric",
+      "q": "客单价 aov 的分母用的是哪个指标？",
+      "must_include": [
+        [
+          "order_cnt"
+        ]
+      ]
+    },
+    {
+      "id": "Q023",
+      "type": "fact",
+      "task": "metric",
+      "q": "ARPPU 的分母是活跃用户还是付费用户？",
+      "must_include": [
+        [
+          "付费用户"
+        ]
+      ]
+    },
+    {
+      "id": "Q024",
+      "type": "fact",
+      "task": "metric",
+      "q": "退款率的分母包不包括未支付的关闭订单？",
+      "must_include": [
+        [
+          "不包括",
+          "不含"
+        ]
+      ]
+    },
+    {
+      "id": "Q025",
+      "type": "fact",
+      "task": "metric",
+      "q": "CTR 的分母是什么？",
+      "must_include": [
+        [
+          "曝光"
+        ]
+      ]
+    },
+    {
+      "id": "Q026",
+      "type": "fact",
+      "task": "metric",
+      "q": "渠道 ROI 的分子用的是总额还是净额？",
+      "must_include": [
+        [
+          "净额",
+          "gmv_net"
+        ]
+      ]
+    },
+    {
+      "id": "Q027",
+      "type": "fact",
+      "task": "metric",
+      "q": "7 日留存指的是第 7 天当天活跃，还是 7 天内任意一天活跃？",
+      "must_include": [
+        [
+          "第 7 天"
+        ]
+      ]
+    },
+    {
+      "id": "Q028",
+      "type": "fact",
+      "task": "metric",
+      "q": "会话是按多长时间无操作切分的？",
+      "must_include": [
+        [
+          "30 分钟"
+        ]
+      ]
+    },
+    {
+      "id": "Q029",
+      "type": "fact",
+      "task": "metric",
+      "q": "渠道 ROI 排名对样本量有什么门槛？",
+      "must_include": [
+        [
+          "100"
+        ],
+        [
+          "单"
+        ]
+      ]
+    },
+    {
+      "id": "Q030",
+      "type": "fact",
+      "task": "metric",
+      "q": "ltv_30d 的观察窗口是多少天？",
+      "must_include": [
+        [
+          "30"
+        ],
+        [
+          "天"
+        ]
+      ]
+    },
+    {
+      "id": "Q031",
+      "type": "fact",
+      "task": "metric",
+      "q": "折扣深度的分母是哪个字段？",
+      "must_include": [
+        [
+          "list_amount"
+        ]
+      ]
+    },
+    {
+      "id": "Q032",
+      "type": "fact",
+      "task": "metric",
+      "q": "付费转化率 pay_rate 的分子和分母分别是什么？",
+      "must_include": [
+        [
+          "paid_user_cnt"
+        ],
+        [
+          "dau_uv"
+        ]
+      ]
+    },
+    {
+      "id": "Q033",
+      "type": "fact",
+      "task": "metric",
+      "q": "复购率的定义里，下单次数要达到几次才算复购？",
+      "must_include": [
+        [
+          "2 次",
+          "≥2",
+          "两次"
+        ]
+      ]
+    },
+    {
+      "id": "Q034",
+      "type": "fact",
+      "task": "metric",
+      "q": "MAU 能不能由每天的 DAU 相加得到？",
+      "must_include": [
+        [
+          "不能"
+        ],
+        [
+          "相加"
+        ]
+      ]
+    },
+    {
+      "id": "Q035",
+      "type": "fact",
+      "task": "scale",
+      "q": "本项目的指标字典一共声明了多少个指标？",
+      "must_include": [
+        [
+          "32"
+        ],
+        [
+          "指标"
+        ]
+      ]
+    },
+    {
+      "id": "Q036",
+      "type": "fact",
+      "task": "metric",
+      "q": "order_line_cnt 和 order_cnt 大概差多少倍？",
+      "must_include": [
+        [
+          "1.28"
+        ]
+      ]
+    },
+    {
+      "id": "Q037",
+      "type": "fact",
+      "task": "guard",
+      "q": "SQL 安全规则一共有几条？",
+      "must_include": [
+        [
+          "18 条",
+          "18条"
+        ],
+        [
+          "规则",
+          "条"
+        ]
+      ]
+    },
+    {
+      "id": "Q038",
+      "type": "fact",
+      "task": "guard",
+      "q": "表名不在表卡白名单里时返回哪个错误码？",
+      "must_include": [
+        [
+          "E1031"
+        ]
+      ]
+    },
+    {
+      "id": "Q039",
+      "type": "fact",
+      "task": "guard",
+      "q": "为什么不用正则做 SQL 安全校验？",
+      "must_include": [
+        [
+          "绕过",
+          "AST"
+        ]
+      ]
+    },
+    {
+      "id": "Q040",
+      "type": "fact",
+      "task": "guard",
+      "q": "访问系统表被拒绝时返回什么码？",
+      "must_include": [
+        [
+          "E1064"
+        ]
+      ]
+    },
+    {
+      "id": "Q041",
+      "type": "fact",
+      "task": "guard",
+      "q": "扫描行数的估算上限是多少？",
+      "must_include": [
+        [
+          "500 万",
+          "500万"
+        ]
+      ]
+    },
+    {
+      "id": "Q042",
+      "type": "fact",
+      "task": "guard",
+      "q": "单条 SQL 的执行超时是多少秒？",
+      "must_include": [
+        [
+          "15"
+        ],
+        [
+          "超时"
+        ]
+      ]
+    },
+    {
+      "id": "Q043",
+      "type": "fact",
+      "task": "guard",
+      "q": "超时检查的 progress_handler 回调间隔是多少？",
+      "must_include": [
+        [
+          "10ms",
+          "10 ms"
+        ]
+      ]
+    },
+    {
+      "id": "Q044",
+      "type": "fact",
+      "task": "guard",
+      "q": "结果集行数超过多少会被截断并报 E1071？",
+      "must_include": [
+        [
+          "10,000",
+          "10000"
+        ]
+      ]
+    },
+    {
+      "id": "Q045",
+      "type": "fact",
+      "task": "guard",
+      "q": "SQL 执行的并发闸门默认值是多少？",
+      "must_include": [
+        [
+          "8"
+        ],
+        [
+          "并发"
+        ]
+      ]
+    },
+    {
+      "id": "Q046",
+      "type": "fact",
+      "task": "guard",
+      "q": "哪两个列属于敏感列，一律不进结果集？",
+      "must_include": [
+        [
+          "user_phone"
+        ],
+        [
+          "id_card"
+        ]
+      ]
+    },
+    {
+      "id": "Q047",
+      "type": "fact",
+      "task": "error",
+      "q": "E1052 表示什么问题？",
+      "must_include": [
+        [
+          "上下文超长",
+          "上下文"
+        ]
+      ]
+    },
+    {
+      "id": "Q048",
+      "type": "fact",
+      "task": "error",
+      "q": "E1080 证据不足拒答，在接口上是按正常返回还是按错误返回？",
+      "must_include": [
+        [
+          "正常"
+        ]
+      ]
+    },
+    {
+      "id": "Q049",
+      "type": "fact",
+      "task": "error",
+      "q": "E1042 是什么错误？",
+      "must_include": [
+        [
+          "并发",
+          "闸门"
+        ]
+      ]
+    },
+    {
+      "id": "Q050",
+      "type": "fact",
+      "task": "error",
+      "q": "SQL 里出现分号分隔的多条语句，会返回哪个码？",
+      "must_include": [
+        [
+          "E1062"
+        ]
+      ]
+    },
+    {
+      "id": "Q051",
+      "type": "fact",
+      "task": "error",
+      "q": "E1071 和 E1072 的区别是什么？",
+      "must_include": [
+        [
+          "结果集"
+        ],
+        [
+          "扫描"
+        ]
+      ]
+    },
+    {
+      "id": "Q052",
+      "type": "fact",
+      "task": "error",
+      "q": "请求来源不在白名单时返回哪个错误码？",
+      "must_include": [
+        [
+          "E1012"
+        ]
+      ]
+    },
+    {
+      "id": "Q053",
+      "type": "fact",
+      "task": "error",
+      "q": "语义层 YAML 校验失败返回什么码？",
+      "must_include": [
+        [
+          "E1030"
+        ]
+      ]
+    },
+    {
+      "id": "Q054",
+      "type": "fact",
+      "task": "error",
+      "q": "sqlglot 无法解析生成的 SQL 时返回什么码？",
+      "must_include": [
+        [
+          "E1060"
+        ]
+      ]
+    },
+    {
+      "id": "Q055",
+      "type": "fact",
+      "task": "error",
+      "q": "日调用额度用尽对应哪个错误码？",
+      "must_include": [
+        [
+          "E1041"
+        ]
+      ]
+    },
+    {
+      "id": "Q056",
+      "type": "fact",
+      "task": "error",
+      "q": "数据库只读快照缺失或损坏时返回什么码？",
+      "must_include": [
+        [
+          "E1090"
+        ]
+      ]
+    },
+    {
+      "id": "Q057",
+      "type": "fact",
+      "task": "api",
+      "q": "/readyz 会检查哪两样东西？",
+      "must_include": [
+        [
+          "warehouse"
+        ],
+        [
+          "semantic"
+        ]
+      ]
+    },
+    {
+      "id": "Q058",
+      "type": "fact",
+      "task": "api",
+      "q": "citations 事件最多返回几条引用？",
+      "must_include": [
+        [
+          "5 条",
+          "5条",
+          "最多 5"
+        ]
+      ]
+    },
+    {
+      "id": "Q059",
+      "type": "fact",
+      "task": "api",
+      "q": "SSE 的保活 ping 间隔是多少秒？",
+      "must_include": [
+        [
+          "15"
+        ],
+        [
+          "秒"
+        ]
+      ]
+    },
+    {
+      "id": "Q060",
+      "type": "fact",
+      "task": "api",
+      "q": "naive 模式的 p50 延迟是多少秒？",
+      "must_include": [
+        [
+          "1.1"
+        ]
+      ]
+    },
+    {
+      "id": "Q061",
+      "type": "fact",
+      "task": "api",
+      "q": "SSE 的 done 事件里，用哪个字段表示本次成本（人民币）？",
+      "must_include": [
+        [
+          "cost_cny"
+        ]
+      ]
+    },
+    {
+      "id": "Q062",
+      "type": "fact",
+      "task": "api",
+      "q": "/v1/ask 的 question 参数长度上限是多少字符？",
+      "must_include": [
+        [
+          "500"
+        ]
+      ]
+    },
+    {
+      "id": "Q063",
+      "type": "fact",
+      "task": "api",
+      "q": "MCP 里用来查询指标口径的工具叫什么？",
+      "must_include": [
+        [
+          "describe_metric"
+        ]
+      ]
+    },
+    {
+      "id": "Q064",
+      "type": "fact",
+      "task": "api",
+      "q": "MCP Server 用的是哪种传输方式？",
+      "must_include": [
+        [
+          "stdio"
+        ]
+      ]
+    },
+    {
+      "id": "Q065",
+      "type": "fact",
+      "task": "api",
+      "q": "反馈接口 /v1/feedback 的 verdict 支持哪几种取值？",
+      "must_include": [
+        [
+          "partial"
+        ]
+      ]
+    },
+    {
+      "id": "Q066",
+      "type": "fact",
+      "task": "api",
+      "q": "调试参数 debug=true 会额外返回什么？",
+      "must_include": [
+        [
+          "检索证据",
+          "证据"
+        ],
+        [
+          "判定"
+        ]
+      ]
+    },
+    {
+      "id": "Q067",
+      "type": "fact",
+      "task": "quota",
+      "q": "free 套餐的每日 token 上限是多少？",
+      "must_include": [
+        [
+          "200,000",
+          "200000"
+        ]
+      ]
+    },
+    {
+      "id": "Q068",
+      "type": "fact",
+      "task": "quota",
+      "q": "business 套餐的 QPS 配额是多少？",
+      "must_include": [
+        [
+          "30"
+        ],
+        [
+          "QPS"
+        ]
+      ]
+    },
+    {
+      "id": "Q069",
+      "type": "fact",
+      "task": "cost",
+      "q": "一次 full 模式的问答，典型成本是多少元？",
+      "must_include": [
+        [
+          "0.026"
+        ]
+      ]
+    },
+    {
+      "id": "Q070",
+      "type": "fact",
+      "task": "cost",
+      "q": "6 万字语料建一次索引大约花多少钱？",
+      "must_include": [
+        [
+          "0.9"
+        ]
+      ]
+    },
+    {
+      "id": "Q071",
+      "type": "fact",
+      "task": "quota",
+      "q": "E1042 响应头里的 Retry-After 单位是什么？",
+      "must_include": [
+        [
+          "毫秒"
+        ]
+      ]
+    },
+    {
+      "id": "Q072",
+      "type": "fact",
+      "task": "cost",
+      "q": "输入 token 的单价大约是输出 token 的多少？",
+      "must_include": [
+        [
+          "四分之一",
+          "1/4"
+        ]
+      ]
+    },
+    {
+      "id": "Q073",
+      "type": "fact",
+      "task": "ops",
+      "q": "容器镜像大约多大？",
+      "must_include": [
+        [
+          "1.2 GB",
+          "1.2GB"
+        ]
+      ]
+    },
+    {
+      "id": "Q074",
+      "type": "fact",
+      "task": "ops",
+      "q": "索引期的内存峰值大约是多少？",
+      "must_include": [
+        [
+          "1.4 GB",
+          "1.4GB"
+        ]
+      ]
+    },
+    {
+      "id": "Q075",
+      "type": "fact",
+      "task": "ops",
+      "q": "trace 数据保留多少天？",
+      "must_include": [
+        [
+          "7 天",
+          "7天"
+        ]
+      ]
+    },
+    {
+      "id": "Q076",
+      "type": "fact",
+      "task": "ops",
+      "q": "审计日志保留多少天？",
+      "must_include": [
+        [
+          "90"
+        ],
+        [
+          "审计"
+        ]
+      ]
+    },
+    {
+      "id": "Q077",
+      "type": "fact",
+      "task": "ops",
+      "q": "并发压测的性能拐点出现在几并发？",
+      "must_include": [
+        [
+          "8"
+        ],
+        [
+          "并发"
+        ]
+      ]
+    },
+    {
+      "id": "Q078",
+      "type": "fact",
+      "task": "ops",
+      "q": "送进重排的文本被截断到多少字符？",
+      "must_include": [
+        [
+          "512"
+        ]
+      ]
+    },
+    {
+      "id": "Q079",
+      "type": "fact",
+      "task": "auth",
+      "q": "五个角色里，哪个角色不能提问？",
+      "must_include": [
+        [
+          "auditor",
+          "审计"
+        ]
+      ]
+    },
+    {
+      "id": "Q080",
+      "type": "fact",
+      "task": "auth",
+      "q": "viewer 角色被明确禁止的操作是什么？",
+      "must_include": [
+        [
+          "导出"
+        ]
+      ]
+    },
+    {
+      "id": "Q081",
+      "type": "fact",
+      "task": "auth",
+      "q": "访问令牌的有效期是多久？",
+      "must_include": [
+        [
+          "8 小时",
+          "8小时"
+        ]
+      ]
+    },
+    {
+      "id": "Q082",
+      "type": "fact",
+      "task": "auth",
+      "q": "租户隔离依赖几样东西？",
+      "must_include": [
+        [
+          "三样",
+          "三"
+        ]
+      ]
+    },
+    {
+      "id": "Q083",
+      "type": "fact",
+      "task": "quality",
+      "q": "30 条数据质量规则分成哪两个级别？",
+      "must_include": [
+        [
+          "阻塞"
+        ],
+        [
+          "告警"
+        ]
+      ]
+    },
+    {
+      "id": "Q084",
+      "type": "fact",
+      "task": "quality",
+      "q": "Q29 校验的是哪两个指标之间的大小关系？",
+      "must_include": [
+        [
+          "UV"
+        ],
+        [
+          "PV"
+        ]
+      ]
+    },
+    {
+      "id": "Q085",
+      "type": "fact",
+      "task": "quality",
+      "q": "校验 rating_avg 一致性时抽样多少本书？",
+      "must_include": [
+        [
+          "100"
+        ],
+        [
+          "本"
+        ]
+      ]
+    },
+    {
+      "id": "Q086",
+      "type": "fact",
+      "task": "quality",
+      "q": "GMV 日环比突变的告警阈值是多少？",
+      "must_include": [
+        [
+          "50%"
+        ]
+      ]
+    },
+    {
+      "id": "Q087",
+      "type": "fact",
+      "task": "eval",
+      "q": "在 30 道可答题的评测里，1 道题值多少个百分点？",
+      "must_include": [
+        [
+          "3.3"
+        ]
+      ]
+    },
+    {
+      "id": "Q088",
+      "type": "fact",
+      "task": "eval",
+      "q": "扩到 120 题后，1 道题大约值多少个百分点？",
+      "must_include": [
+        [
+          "0.83"
+        ]
+      ]
+    },
+    {
+      "id": "Q089",
+      "type": "fact",
+      "task": "eval",
+      "q": "为什么不用 LLM 当评测裁判？",
+      "must_include": [
+        [
+          "不可复现",
+          "稳定"
+        ]
+      ]
+    },
+    {
+      "id": "Q090",
+      "type": "fact",
+      "task": "eval",
+      "q": "mix 配置的分数为什么反而低于 naive？",
+      "must_include": [
+        [
+          "干扰"
+        ]
+      ]
+    },
+    {
+      "id": "Q091",
+      "type": "fact",
+      "task": "eval",
+      "q": "判定器改成「先摘录再判定」后，误拒率从 20% 降到了多少？",
+      "must_include": [
+        [
+          "0%"
+        ]
+      ]
+    },
+    {
+      "id": "Q092",
+      "type": "fact",
+      "task": "eval",
+      "q": "评测主指标 EX 的全称含义是什么？",
+      "must_include": [
+        [
+          "结果集"
+        ]
+      ]
+    },
+    {
+      "id": "Q093",
+      "type": "fact",
+      "task": "arch",
+      "q": "整个项目一共做了 10 项选型，其中语义检索用的是什么方案？",
+      "must_include": [
+        [
+          "BM25"
+        ]
+      ]
+    },
+    {
+      "id": "Q094",
+      "type": "fact",
+      "task": "arch",
+      "q": "MCP 协议手写实现大约多少行代码？",
+      "must_include": [
+        [
+          "200"
+        ]
+      ]
+    }
+  ]
+}

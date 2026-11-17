@@ -14,6 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
+# LCEL 编排只多一个包，单独成层：改它不会让上面那层（lightrag 全家桶）失效
+COPY requirements-lcel.txt .
+RUN pip install --prefix=/install -r requirements-lcel.txt
+
 # 预热：把 bge 模型下到 /opt/hf，运行时不需要外网
 RUN PYTHONPATH=/install/lib/python3.12/site-packages \
     HF_ENDPOINT=https://hf-mirror.com \
