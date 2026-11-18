@@ -354,57 +354,63 @@ LLM_MODEL=qwen-plus        # .env，改完 docker compose up -d --force-recreate
 
 ---
 
-## 15. 主备双模型 + 真实价格表（2026-11-18）
+## 15. 主备双模型：默认关闭（2026-11-18 改）
 
-**动机**：11-18 下午 `qwen3.7-flash` 的 1M 免费额度被实验跑光，线上直接 500——
-访客看到的是"项目挂了"，而根因只是额度。**单一模型就是这个 Demo 的单点故障。**
+> 11-18 白天先做了"主备自动切换"，晚上改回**默认不切**——理由见第 16 节。
+> 现在 failover 是一个显式开关：`LLM_FALLBACK_ENABLED=1` 才生效。
 
 ### 15.1 配置（`.env`，不进 git）
 
 ```bash
-# 主：DeepSeek
+# 主：DeepSeek（运行时只初始化这一个 provider）
 LLM_MODEL=deepseek-chat
 LLM_BASE_URL=https://api.deepseek.com/v1
-LLM_API_KEY=sk-...            # DeepSeek key
-LLM_EXTRA_BODY=               # DeepSeek 不认识 enable_thinking，必须留空
+LLM_API_KEY=sk-...
+LLM_EXTRA_BODY=            # DeepSeek 不认识 enable_thinking，必须留空
 
-# 备：通义百炼
+# 备：通义百炼（默认不加载；下面这行是 1 才会 import qwen provider）
+LLM_FALLBACK_ENABLED=0
 LLM_FALLBACK_MODEL=qwen-plus
 LLM_FALLBACK_BASE_URL=https://ws-xxxx.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
 LLM_FALLBACK_API_KEY=sk-ws-...
 LLM_FALLBACK_EXTRA_BODY={"enable_thinking": false}
 
-# 价格表（元 / 百万 token）
+# 价格（元 / 百万 token）
 PRICE_DEEPSEEK_INPUT=1.07
 PRICE_DEEPSEEK_OUTPUT=4.29
-# PRICE_QWEN_INPUT / PRICE_QWEN_OUTPUT：**未核实，故意留空**
 ```
 
-> ⚠️ **`PRICE_QWEN_*` 留空是有意的**：qwen-plus 的单价我没有在控制台核实到，
-> 不编数字。留空时回落到 `PRICE_IN_PER_M` / `PRICE_OUT_PER_M`（= DeepSeek 价），
-> 所以**发生 failover 的那几笔成本偏高估**，token 数不受影响。
+**`PRICE_QWEN_INPUT` / `PRICE_QWEN_OUTPUT` / `PRICE_QWEN_CACHED` 三项已从代码里删除**，
+不是留空。留一个空配置项，迟早有人往里填个"差不多"的数字，`cost_cny` 就悄悄失真，
+而界面上那个 ¥ 看起来一切正常——这比不显示价格更糟。
 
-### 15.2 切换规则
+默认配置下 `llm_fallback.py` 连 import 都不会发生（`llm_client.fallback_client()`
+把 import 写在函数体里），所以备胎里写错任何变量都伤不到主路径。
 
-- 触发条件：401 / 403 / 408 / 429 / 5xx，或超时、连接错误。
-  **401 也算**——key 写错或被轮换时主模型必然 401，这正是"主模型挂了但服务还能答"的场景。
-- 主模型先按 `LLM_RETRIES`（默认 3）重试 + 指数退避；**全部失败才切**。
-- 切完**不再回试主模型**，避免抖动时来回横跳。
-- 切换会在日志里留一行 `[llm] 主模型 ... 失败（...），切备用 ...`，并计入 `fallbacks` 计数。
-- 响应新增 `model_used`，客户端能看出这一次到底用了谁。
+### 15.2 失败分类与重试
 
-### 15.3 验收（实测）
+| 上游返回 | 判定 | 重试 | 对外 |
+|---|---|---|---|
+| 401 / 403 | key 错、被封、额度耗尽（百炼用 403 表达） | **不重试** | 500，日志写明"认证失败" |
+| 429 / 5xx / 超时 / 连接错误 | 上游暂时不可用 | 同模型重试 **2 次**，间隔 **1s、3s** | 503 + `Retry-After: 30` |
+| 400 等其它 4xx | 我们自己的请求写错了 | 不重试 | 500（报 503 会把排查引向"等一会儿再试"） |
 
-容器内注入坏 key（不动线上配置）：
+- 重试次数由 `LLM_RETRIES` 控制（默认 3 = 首次 + 2 次重试）；评测跑批可设 5，
+  后面的间隔继续翻倍（6s、12s）。
+- 只有 failover 开启时，才在两轮都失败后切备用；切完**不回试**主模型。
+- SSE 路径没有改状态码的机会（200 早就发出去了），所以 503 走 **error 事件**：
+  `{"code": "E2053", "status": 503, "retry_after": 30}`，**先发 error 再发 done 关闭**，
+  不让前端一直转圈等 token。
 
-```
-主 key 正常 → reply='收到' model_used=deepseek-chat fallbacks=0
-主 key 坏   → [llm] 主模型 deepseek-chat 失败（AuthenticationError: 401 ...），切备用 qwen-plus
-              reply='收到' model_used=qwen-plus fallbacks=1
-```
+### 15.3 验收
 
-线上整链验证过一次：把 `.env` 的 `LLM_API_KEY` 改成 `sk-bad-key` → `/v1/ask` 返回
-**200 + `model_used=qwen-plus`**；恢复 key 后回到 `deepseek-chat`。
+- 单元测试 `tests/test_llm_failover.py`（8 条）钉住四件事：
+  1. 401 / 403 只打一次上游，抛 `LLMAuthError`；
+  2. 429 / 502 打 3 次，间隔恰好 `[1.0, 3.0]`，最终 `LLMUnavailable`（503 + 30s）；
+  3. SSE 收到 `LLMUnavailable` 时，先发 `event: error`（含 status 503、retry_after 30）
+     再发 `event: done`；
+  4. `LLM_FALLBACK_ENABLED=0` 时打完一轮失败，`llm_fallback` 仍不在 `sys.modules` 里。
+- 真机演练：`python scripts/drill_fallback.py`（见第 17 节，不进 CI）。
 
 ### 15.4 踩坑（两次都是我自己的配置错，不是代码错）
 
@@ -412,6 +418,64 @@ PRICE_DEEPSEEK_OUTPUT=4.29
    ——我从**本地** `.env` 抓的 URL，本地那份指向 DeepSeek。报错是
    `supported API model names are deepseek-flash, deepseek-v4-pro, but you passed qwen-plus`。
 2. 第二次 500：`LLM_FALLBACK_API_KEY` 也是本地那份（旧的、401 的 key）。
-   从服务器 `.env.bak2` 取容器真正在用的那把才对。
 
 **教训**：`LLM_API_KEY` 这种变量在本地和线上是两把不同的 key，跨机器抄配置一定会抄错。
+
+---
+
+## 16. 为什么默认不 failover
+
+三条理由，按严重程度排。
+
+### 16.1 引用编号会越界，而"引用可回溯"是产品核心承诺
+
+qwen-plus 只有 6 个证据块却写出 `[16]`，`parse_citations` 把越界编号丢掉，
+于是 `citations` 为空、`chunks` 为空——界面上"来源"一栏是白的，30 题里约 1/4 命中。
+已在证据块开头加"共 N 条、编号 1–N"，但**没有根治**。
+
+这个 Demo 卖的就是"每句话能点回原文"。切到一个会打破这条承诺的模型，
+等于用"能答"换掉"可信"：两个都不是满分，但后者是差异点。
+
+### 16.2 免费额度不可预期，一个平时不触发的备胎等于没有备胎
+
+qwen3.7-flash 的 1M 额度在 11-18 下午被实验跑光，线上直接 500，
+根因是上游 `403 Free quota exhausted`。备胎用的也是免费额度，同样会被跑光，
+只是晚几天。真正的冗余不是"再找一个免费模型"，而是"有一个按量计费、
+成本可预期的兜底"——那件事没做，就别假装有。
+
+### 16.3 两个模型混跑会污染 cost_cny 的口径
+
+`cost_cny` 按 `model_used` 分桶乘单价算出来。qwen 的单价没在控制台核实到，
+`PRICE_QWEN_*` 也删了，一旦发生 failover，成本只能按主模型价折算——
+数字看着正常，其实是错的。而"单题成本 ¥0.0037"是要写进简历、
+会被追问"怎么算的"的数字，不能有一个"有时候不准"的口径。
+
+### 16.4 什么时候才应该打开
+
+- 演示/面试现场主模型 key 突然失效，且你**当场能解释**"这一次引用可能不全"；
+- 已经拿到 qwen 的**按量计费**单价（不是免费额度），并写进 `PRICE_*`；
+- 或者转做"两个模型并列跑同一题、对比引用完整率"的实验——那是另一件事，
+  不属于 failover。
+
+### 16.5 线上当前状态
+
+- 代码默认只初始化 DeepSeek provider；`LLM_FALLBACK_ENABLED` 不写就是关。
+- 线上 `.env` 的 `LLM_MODEL` 保持原样，**本次没有改线上配置、没有重启**。
+
+---
+
+## 17. 演练脚本怎么用
+
+`scripts/drill_fallback.py` 只在本地跑，**不进 CI**：它真的会打上游（有成本），
+依赖真实 key，而且在 CI 里等于每次流水线都去改一次 key。
+
+```bash
+python scripts/drill_fallback.py --dry-run   # 只打印配置，确认三项齐全
+python scripts/drill_fallback.py             # 完整四步
+```
+
+四步：真 key 走主模型 → 坏 key + 开 failover 切到备用 → 坏 key + 关 failover 抛
+`LLMAuthError` 且 retries=0 → 恢复真 key 回到主模型。
+
+脚本只在**进程内存**里改 `os.environ`，不写回 `.env`，退出即恢复；
+坏 key 用固定的 `sk-drill-invalid-key-0000`，不会碰到你真实的 key。

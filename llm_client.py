@@ -68,8 +68,10 @@ def _vendor_extras(which: str = "primary") -> dict:
 def _price_for(model: str) -> tuple[float, float]:
     """按模型名取 (输入价, 输出价)，单位：元 / 百万 token。
 
-    变量名按厂商分组（PRICE_DEEPSEEK_* / PRICE_QWEN_*），未知模型回落到
-    PRICE_IN_PER_M / PRICE_OUT_PER_M。默认值只在"没配"时生效，不是猜的价格。
+    只认主模型一种价。`PRICE_QWEN_*` 三项已经删掉，不是留空：
+    留一个空配置项，迟早有人往里填个"差不多"的数字，然后 cost_cny
+    悄悄失真，而界面上那个 ¥ 看起来一切正常——这比不显示价格更糟。
+    qwen 的单价没有在控制台核实到，就不给它留位置（见 DEPLOY.md 第 15 节）。
     """
     m = (model or "").lower()
     legacy_in = float(os.environ.get("PRICE_IN_PER_M", "1.07") or 1.07)
@@ -79,37 +81,93 @@ def _price_for(model: str) -> tuple[float, float]:
             float(os.environ.get("PRICE_DEEPSEEK_INPUT", "") or legacy_in),
             float(os.environ.get("PRICE_DEEPSEEK_OUTPUT", "") or legacy_out),
         )
-    if m.startswith("qwen"):
-        return (
-            float(os.environ.get("PRICE_QWEN_INPUT", "") or legacy_in),
-            float(os.environ.get("PRICE_QWEN_OUTPUT", "") or legacy_out),
-        )
     return legacy_in, legacy_out
 
 
-def _fallback_price(model: str) -> tuple[float, float]:
-    return _price_for(model)
+class LLMError(Exception):
+    """LLM 不可用的统一出口。
+
+    服务层只看 ``status`` / ``code``，不去解析厂商报文的字符串——
+    把"是不是 401"的判断留在客户端这一层，接口层才不会长出一堆正则。
+    """
+
+    status = 500
+    code = "E2050"
 
 
-# 哪些错误应该切备用模型。
-# 401 也要切：key 写错/被轮换时主模型必然 401，而备用模型 key 是独立的——
-# 这正是"主模型挂了但服务还能答"的典型场景（验收用例就是改错主模型 key）。
-_SWITCH_STATUS = {401, 403, 408, 429, 500, 502, 503, 504}
+class LLMAuthError(LLMError):
+    """401 / 403：key 写错、被封、或上游用 403 表达"额度耗尽"。
+
+    重试对它没有任何意义——同一把 key 再敲十次还是 401，只会把用户从
+    "0.3 秒看到报错"拖成"等十几秒才看到报错"。所以直接抛，服务层回 500。
+    """
+
+    status = 500
+    code = "E2051"
 
 
-def _should_switch(exc: Exception) -> bool:
+class LLMUnavailable(LLMError):
+    """429 / 5xx / 超时，重试之后仍然不可用。服务层回 503 + Retry-After。"""
+
+    status = 503
+    code = "E2053"
+    retry_after = 30
+
+
+_AUTH_STATUS = {401, 403}
+
+
+def _status_of(exc: Exception) -> int | None:
     status = getattr(exc, "status_code", None)
-    if isinstance(status, int) and status in _SWITCH_STATUS:
+    return status if isinstance(status, int) else None
+
+
+def _is_auth(exc: Exception) -> bool:
+    if _status_of(exc) in _AUTH_STATUS:
         return True
     name = type(exc).__name__
-    return any(k in name for k in ("Timeout", "Connection", "APIConnection", "ConnectError"))
+    return "Authentication" in name or "PermissionDenied" in name
 
 
-_fallback_client: AsyncOpenAI | None = None
+def _is_retryable(exc: Exception) -> bool:
+    """只有 429 / 5xx / 超时 / 连接错误值得重试。
+
+    400（参数写错）重试多少次都是 400，白白多等 4 秒；把它排除掉，
+    日志里也少两条噪音。
+    """
+    status = _status_of(exc)
+    if status is None:
+        name = type(exc).__name__
+        return any(k in name for k in ("Timeout", "Connection", "APIConnection", "ConnectError"))
+    return status == 429 or 500 <= status <= 599
+
+
+def _backoff(attempt: int) -> float:
+    """第 1、2 次重试分别等 1 秒、3 秒。
+
+    服务端默认只重试 2 次（`LLM_RETRIES=3` 次尝试），用户最多多等 4 秒；
+    评测跑批会把 `LLM_RETRIES` 提到 5，后面的间隔继续翻倍（6s / 12s），
+    让一次 25 分钟的长跑不至于被几十秒的网络抖动毁掉。
+    """
+    return 1.0 if attempt == 0 else 3.0 * 2 ** (attempt - 1)
+
+
+async def _sleep(seconds: float) -> None:
+    """单独抽出来只为一件事：测试要断言"重试前真的等了 1s / 3s"，
+    但测试自己不能真等 4 秒。"""
+    await asyncio.sleep(seconds)
 
 
 def fallback_enabled() -> bool:
-    """备用模型是否配全（模型名 + key + 端点）。缺一项就视为没配。"""
+    """备用模型是否启用：必须显式写 `LLM_FALLBACK_ENABLED=1`，且三项配置齐全。
+
+    **默认关闭**。三条理由（完整版见 DEPLOY.md「为什么默认不 failover」）：
+    qwen 会引用越界，而"引用可回溯"是产品核心承诺；免费额度不可预期；
+    两个模型混跑会污染 cost_cny 的口径。
+    """
+    flag = os.environ.get("LLM_FALLBACK_ENABLED", "0").strip().lower()
+    if flag not in {"1", "true", "yes", "on"}:
+        return False
     return bool(
         os.environ.get("LLM_FALLBACK_MODEL")
         and os.environ.get("LLM_FALLBACK_API_KEY")
@@ -118,15 +176,14 @@ def fallback_enabled() -> bool:
 
 
 def fallback_client() -> AsyncOpenAI:
-    global _fallback_client
-    if _fallback_client is None:
-        _fallback_client = AsyncOpenAI(
-            api_key=os.environ["LLM_FALLBACK_API_KEY"],
-            base_url=os.environ["LLM_FALLBACK_BASE_URL"],
-            timeout=180,
-            max_retries=0,
-        )
-    return _fallback_client
+    """惰性加载 qwen provider：只有启用 failover 才 import。
+
+    import 放在函数体里是刻意的——默认配置下 `llm_fallback` 连
+    `sys.modules` 都不会进，备胎里写错任何一个变量都伤不到主路径。
+    """
+    from llm_fallback import client as _make
+
+    return _make()
 
 
 def _model_of(which: str) -> str:
@@ -181,7 +238,7 @@ class Usage:
         PRICE_IN_PER_M / PRICE_OUT_PER_M（兼容旧配置）。
         """
         if not self.by_model:
-            pin, pout = _fallback_price("")
+            pin, pout = _price_for("")
             return self.prompt_tokens / 1e6 * pin + self.completion_tokens / 1e6 * pout
         total = 0.0
         for model, (tin, tout) in self.by_model.items():
@@ -321,21 +378,39 @@ async def llm_func(
             return await _once("primary", messages, opts)
         except Exception as e:  # 限流 / 网络抖动 / 5xx / key 失效
             last = e
-            USAGE.retries += 1
-            if attempt == attempts - 1:
+            if _is_auth(e):
+                # 401 / 403 重试没有意义：同一把 key 再敲十次还是 401。
+                # 直接进失败分支，由服务层回 500，日志里写清是认证问题。
+                logger.error(
+                    "[llm] 主模型 %s 认证失败（%s: %s），不重试",
+                    _model_of("primary"), type(e).__name__, str(e)[:120],
+                )
                 break
-            await asyncio.sleep(2 ** (attempt + 1))
+            if not _is_retryable(e) or attempt == attempts - 1:
+                break
+            USAGE.retries += 1
+            await _sleep(_backoff(attempt))
 
-    # 主模型彻底失败：能切就切，切完**不再回试主模型**（避免抖动时来回横跳）。
-    if last is not None and _should_switch(last) and fallback_enabled():
+    # 主模型彻底失败：**只有显式开启** failover 才切，切完不再回试主模型
+    # （避免抖动时来回横跳）。没开就直接抛，让服务层给出 500 / 503。
+    if last is not None and fallback_enabled():
         logger.warning(
             "[llm] 主模型 %s 失败（%s: %s），切备用 %s",
             _model_of("primary"), type(last).__name__, str(last)[:120],
             _model_of("fallback"),
         )
         _mark_fallback()
-        return await _once("fallback", messages, opts)
-    raise last  # pragma: no cover
+        try:
+            return await _once("fallback", messages, opts)
+        except Exception as e2:  # noqa: BLE001
+            raise LLMUnavailable(f"主备均不可用：{type(e2).__name__}: {e2}") from e2
+
+    if last is not None and _is_auth(last):
+        raise LLMAuthError(f"{type(last).__name__}: {str(last)[:200]}") from last
+    if last is not None and not _is_retryable(last):
+        # 400 这类是我们自己把请求写错了，说"上游不可用"会误导排查方向。
+        raise LLMError(f"上游拒绝请求：{type(last).__name__}: {str(last)[:200]}") from last
+    raise LLMUnavailable(f"{type(last).__name__}: {str(last)[:200]}") from last
 
 
 async def _open_stream(which: str, messages: list[dict], opts: dict):
@@ -383,17 +458,46 @@ async def llm_stream(
     opts.setdefault("max_tokens", 4096)
     # 建流这一步也可能失败（key 失效 / 5xx / 超时）。必须在**拿到流之前**切，
     # 一旦开始 yield 就无法安全地换模型重来——用户会看到答案被截断。
+    # 重试策略与 llm_func 完全一致：401/403 不重试，429/5xx/超时 1s、3s 各重试一次。
     t0 = time.perf_counter()
-    try:
-        stream, used_model = await _open_stream("primary", messages, opts)
-    except Exception as e:  # noqa: BLE001
-        if _should_switch(e) and fallback_enabled():
+    attempts = max(1, int(os.environ.get("LLM_RETRIES", "3")))
+    stream = None
+    used_model = ""
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            stream, used_model = await _open_stream("primary", messages, opts)
+            break
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if _is_auth(e):
+                logger.error(
+                    "[llm-stream] 主模型 %s 认证失败（%s: %s），不重试",
+                    _model_of("primary"), type(e).__name__, str(e)[:120],
+                )
+                break
+            if not _is_retryable(e) or attempt == attempts - 1:
+                break
+            USAGE.retries += 1
+            await _sleep(_backoff(attempt))
+
+    if stream is None:
+        if last is not None and fallback_enabled():
             logger.warning("[llm-stream] 主模型建流失败（%s: %s），切备用 %s",
-                           type(e).__name__, str(e)[:120], _model_of("fallback"))
+                           type(last).__name__, str(last)[:120], _model_of("fallback"))
             _mark_fallback()
-            stream, used_model = await _open_stream("fallback", messages, opts)
+            try:
+                stream, used_model = await _open_stream("fallback", messages, opts)
+            except Exception as e2:  # noqa: BLE001
+                raise LLMUnavailable(f"主备均不可用：{type(e2).__name__}: {e2}") from e2
+        elif last is not None and _is_auth(last):
+            raise LLMAuthError(f"{type(last).__name__}: {str(last)[:200]}") from last
+        elif last is not None and not _is_retryable(last):
+            raise LLMError(f"上游拒绝请求：{type(last).__name__}: {str(last)[:200]}") from last
         else:
-            raise
+            raise LLMUnavailable(
+                f"{type(last).__name__}: {str(last)[:200]}" if last else "建流失败"
+            ) from last
     buf: list[str] = []
     usage = None
     async for chunk in stream:

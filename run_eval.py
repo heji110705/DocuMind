@@ -109,6 +109,10 @@ async def run_config(dm: DocuMind, items: list[dict], name: str, kw: dict, conc:
                     "prompt_tokens": a.extra.get("prompt_tokens", 0),
                     "completion_tokens": a.extra.get("completion_tokens", 0),
                     "n_chunks": a.extra.get("n_chunks", 0),
+                    # 这两列是"这批数据干不干净"的唯一凭证：model_used 说用了谁，
+                    # fallbacks 说中途有没有切过。缺了它们，只能靠翻日志猜。
+                    "model_used": a.extra.get("model_used", ""),
+                    "fallbacks": a.extra.get("fallbacks", 0),
                 }
             )
 

@@ -404,6 +404,9 @@ class DocuMind:
                         "citation_oob": oob,
                         "citation_repair": repaired,
                         "model_used": used.model_used,
+                        # 记下这一题有没有发生 failover：评测要验"这批数据是纯的"，
+                        # 光有 model_used 不够——切过一次再切回来时，终值仍是主模型。
+                        "fallbacks": used.fallbacks,
                         "budget": budget_stats,
                         "dedup": dedup_stats,
                     },

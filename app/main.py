@@ -48,7 +48,8 @@ from context_budget import apply_budget, budget_from_env  # noqa: E402
 from app.upload import UploadTooLarge, read_upload  # noqa: E402
 from app.tenancy import TenantPool  # noqa: E402
 from index_stats import chunks_by_file, documents_of  # noqa: E402
-from llm_client import Usage, llm_stream, track_usage  # noqa: E402
+from llm_client import (LLMAuthError, LLMError, LLMUnavailable, Usage,  # noqa: E402
+                       llm_stream, track_usage)
 from query import (REFUSAL_TEXT, DocuMind, _parse_citations,  # noqa: E402
                    _repair_citations, build_answer_prompt, is_refusal)
 
@@ -64,8 +65,29 @@ STATIC = Path(__file__).parent / "static"
 _read_params = read_params
 
 
-def _err(code: str, status: int, message: str, **extra) -> JSONResponse:
-    return JSONResponse({"error": {"code": code, "message": message, **extra}}, status_code=status)
+def _err(code: str, status: int, message: str, headers: dict | None = None, **extra) -> JSONResponse:
+    return JSONResponse({"error": {"code": code, "message": message, **extra}},
+                        status_code=status, headers=headers)
+
+
+def _llm_error_response(e: LLMError) -> JSONResponse:
+    """把 LLM 的失败翻成对外的状态码。
+
+    401/403 是**我们这边**的配置问题（key 错/被停），对访客说"模型不可用"
+    会让人以为是上游抖动，所以这类单独给 500 和一句能转给运维的话；
+    429/5xx/超时是上游暂时不可用，给 503 + Retry-After，让客户端知道
+    30 秒后再来，而不是立刻重试把上游再打一遍。
+    """
+    if isinstance(e, LLMAuthError):
+        print(f"[llm] 认证失败：{e}", flush=True)
+        return _err(e.code, 500, "模型认证失败，请联系管理员")
+    if isinstance(e, LLMUnavailable):
+        print(f"[llm] 上游不可用：{e}", flush=True)
+        return _err(e.code, 503, "模型暂时不可用，请 30 秒后重试",
+                    headers={"Retry-After": str(getattr(e, "retry_after", 30))})
+    # 400 这类：请求本身有问题，不是上游宕机，别用 503 把人引到"等一会儿再试"。
+    print(f"[llm] 请求被拒：{e}", flush=True)
+    return _err(e.code, 500, "模型调用失败，请检查服务端配置")
 
 
 # ------------------------------------------------------------------- 多租户
@@ -472,6 +494,26 @@ async def ask_stream(body: dict, request: Request):
             except AuthError as e:
                 await q.put(("error", {"code": e.code, "message": e.message}))
                 await q.put(("done", {"refused": True, "reason": "auth", **_bill(used, t0)}))
+            except LLMUnavailable as e:
+                # 流已经开始了（HTTP 200 早就发出去了），改不了状态码，所以把 503
+                # 放进 error 事件里。**必须先发 error 再 close**：前端靠它判断
+                # "不是没答案，是模型暂时不可用"，否则会一直转圈等 token。
+                await q.put(("error", {"code": e.code, "status": 503,
+                                       "retry_after": e.retry_after,
+                                       "message": "模型暂时不可用，请 30 秒后重试"}))
+                await q.put(("done", {"refused": True, "reason": "unavailable",
+                                      **_bill(used, t0)}))
+            except LLMAuthError as e:
+                await q.put(("error", {"code": e.code, "status": 500,
+                                       "message": "模型认证失败，请联系管理员"}))
+                await q.put(("done", {"refused": True, "reason": "auth_error",
+                                      **_bill(used, t0)}))
+            except LLMError as e:
+                # 这一层兜住"上游拒绝请求"（400 之类）：不是宕机，别让前端去等 30 秒。
+                await q.put(("error", {"code": e.code, "status": 500,
+                                       "message": "模型调用失败，请检查服务端配置"}))
+                await q.put(("done", {"refused": True, "reason": "llm_error",
+                                      **_bill(used, t0)}))
             except Exception as e:  # 任何异常都要落到 error 事件，否则前端一直转
                 await q.put(("error", {"code": "E2050", "message": f"{type(e).__name__}: {e}"}))
                 await q.put(("done", {"refused": True, "reason": "error", **_bill(used, t0)}))
@@ -522,6 +564,9 @@ async def ask(body: dict, request: Request):
             a = await dm.ask(p["question"], mode=p["mode"], rerank=p["rerank"], guard=True,
                              top_k=p["top_k"], chunk_top_k=p["chunk_top_k"],
                              history=p["history"])
+    except LLMError as e:
+        # 模型侧的失败用状态码表达，200 + 空答案会让调用方以为"拒答了"。
+        return _llm_error_response(e)
     finally:
         gate.release()
     return {
