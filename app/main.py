@@ -43,6 +43,7 @@ from app.billing import bill as _bill  # noqa: E402
 from app.limits import build_from_env as _build_limiter  # noqa: E402
 from app.ingest import MAX_BYTES, IngestError, parse_document, save_bytes  # noqa: E402
 from app.params import BadRequest, read_params  # noqa: E402
+from chunk_dedup import dedupe, threshold_from_env as dedup_threshold  # noqa: E402
 from context_budget import apply_budget, budget_from_env  # noqa: E402
 from app.upload import UploadTooLarge, read_upload  # noqa: E402
 from app.tenancy import TenantPool  # noqa: E402
@@ -413,13 +414,15 @@ async def ask_stream(body: dict, request: Request):
                         standalone, mode=p["mode"], rerank=p["rerank"],
                         top_k=p["top_k"], chunk_top_k=p["chunk_top_k"],
                     )
-                    # 与非流式同一条规则：编号之前裁，保证 [n] 与返回的 chunks 对齐
+                    # 与非流式同一条规则：编号之前处理（先去重再裁预算），
+                    # 保证 [n] 与返回的 chunks 对齐
+                    chunks, dedup_stats = dedupe(chunks, dedup_threshold())
                     chunks, budget_stats = apply_budget(chunks, budget_from_env())
                     n_chunks = len(chunks)
                     await q.put(("stage", {"name": "retrieve", "status": "end",
                                            "ms": int((time.perf_counter() - t0) * 1000),
                                            "n_chunks": n_chunks, "rerank": used_rerank,
-                                           "budget": budget_stats}))
+                                           "budget": budget_stats, "dedup": dedup_stats}))
 
                     if not chunks:
                         await q.put(("token", {"text": REFUSAL_TEXT}))

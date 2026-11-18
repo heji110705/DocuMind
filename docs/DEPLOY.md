@@ -330,3 +330,24 @@ PRICE_OUT_PER_M=0.8
 
 另外把 `/docs` 与 `/openapi.json` 默认关掉了（`DOCS=1` 可开）：
 这两个地址会把全部接口列在公网上，包括 `/v1/documents` 这种写接口。
+
+---
+
+## 14. 线上模型切到 qwen-plus（2026-11-18）
+
+`qwen3.7-flash` 的 1M 免费额度在 11-18 下午耗尽，线上开始对访客返回 500
+（真实原因是上游 `403 Free quota exhausted`）。已切到 **`qwen-plus`**：
+
+```
+LLM_MODEL=qwen-plus        # .env，改完 docker compose up -d --force-recreate
+```
+
+**代价与口径**：
+- 延迟变高：同一批题 p50 从 2.2 s 升到 3.5 s（`/v1/ask` 实测），重排档更明显。
+- **成本列失真**：`PRICE_IN_PER_M` / `PRICE_OUT_PER_M` 仍是 0.2 / 0.8（qwen3.7-flash 的价），
+  qwen-plus 的单价不同，所以界面上的 ¥ **只能当同口径的相对比较，不能当账单**。
+  要修准需要按控制台单价改这两个变量，本次未改（没有核实到的价格不往上写）。
+
+**已知缺陷**：qwen-plus 偶发引用越界（只有 6 块却写 `[16]`），
+`parse_citations` 会丢弃越界编号，于是 `/v1/ask` 返回的 `chunks` 为空、界面来源空白。
+已在证据块开头加了"共 N 条、编号 1–N"，但**没有根治**（30 题里仍出现约 1/4）。

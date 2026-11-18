@@ -47,6 +47,7 @@ from index_stats import count_chunks, index_stats  # noqa: E402
 from prompts import (CONDENSE_PROMPT, JUDGE_PROMPT, build_answer_prompt,  # noqa: E402,F401
                      build_history_block, clean_rewrite, evidence_block,
                      is_refusal, parse_verdict)
+from chunk_dedup import dedupe, threshold_from_env as dedup_threshold  # noqa: E402
 from context_budget import apply_budget, budget_from_env, cap_chunk_top_k  # noqa: E402
 from prompts import parse_citations as _parse_citations  # noqa: E402
 from llm_client import llm_func, track_usage  # noqa: E402
@@ -367,8 +368,10 @@ class DocuMind:
             chunks, used_rerank = await self.retrieve(
                 standalone, mode=mode, rerank=rerank, top_k=top_k, chunk_top_k=chunk_top_k
             )
-            # 预算裁剪必须在这里：judge、提示词、引用编号、响应 chunks 共用这一份列表。
-            # 若只在拼提示词时裁，答案里的 [n] 会指向被裁掉之后错位的编号。
+            # 顺序：先去重、再裁预算。
+            # 两者都必须在这里（judge、提示词、引用编号、响应 chunks 共用这一份列表）；
+            # 若只在拼提示词时处理，答案里的 [n] 会指向处理之后错位的编号。
+            chunks, dedup_stats = dedupe(chunks, dedup_threshold())
             chunks, budget_stats = apply_budget(chunks, budget_from_env())
 
             def finish(text: str, refused: bool) -> Answer:
@@ -393,6 +396,7 @@ class DocuMind:
                         "standalone": standalone,
                         "history_used": len(history or []),
                         "budget": budget_stats,
+                        "dedup": dedup_stats,
                     },
                 )
 

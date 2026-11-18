@@ -112,7 +112,11 @@ def build_answer_prompt(question: str, chunks: list[dict], quote: str = "") -> t
     hint = ""
     if quote and not quote.upper().startswith("NONE"):
         hint = "\n\n【与问题直接相关的原文】\n" + quote
-    return question, SYSTEM_PROMPT + hint + "\n\n【证据】\n" + evidence_block(chunks)
+    # 证据块开头给出编号范围。不加这句时，模型会引用并不存在的编号
+    # （实测 qwen-plus 只有 6 块却写 [16]），而 parse_citations 会把越界编号丢掉，
+    # 结果是"答案正确、引用为空、界面来源空白"。把范围写在它眼前是最便宜的修法。
+    head = f"\n\n【证据】（共 {len(chunks)} 条，编号 1–{len(chunks)}）\n"
+    return question, SYSTEM_PROMPT + hint + head + evidence_block(chunks)
 
 
 def parse_citations(text: str, n_chunks: int) -> list[int]:
