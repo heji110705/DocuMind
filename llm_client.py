@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import time
 from contextlib import contextmanager
@@ -30,6 +31,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
+logger = logging.getLogger("documind.llm")
+
 ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env")
 
@@ -38,7 +41,7 @@ load_dotenv(ROOT / ".env")
 _ALLOWED = {"max_tokens", "temperature", "top_p", "stop", "timeout", "seed", "extra_body"}
 
 
-def _vendor_extras() -> dict:
+def _vendor_extras(which: str = "primary") -> dict:
     """厂商私有参数，从 LLM_EXTRA_BODY 读一个 JSON 对象。
 
     为什么需要它：不同厂商把关键开关藏在私有字段里，而 OpenAI 兼容层只认
@@ -51,7 +54,8 @@ def _vendor_extras() -> dict:
 
     解析失败一律返回空 dict 而不抛异常：一个写错的配置项不应该让整个服务起不来。
     """
-    raw = os.environ.get("LLM_EXTRA_BODY", "").strip()
+    key = "LLM_EXTRA_BODY" if which == "primary" else "LLM_FALLBACK_EXTRA_BODY"
+    raw = os.environ.get(key, "").strip()
     if not raw:
         return {}
     try:
@@ -59,6 +63,76 @@ def _vendor_extras() -> dict:
     except json.JSONDecodeError:
         return {}
     return val if isinstance(val, dict) else {}
+
+
+def _price_for(model: str) -> tuple[float, float]:
+    """按模型名取 (输入价, 输出价)，单位：元 / 百万 token。
+
+    变量名按厂商分组（PRICE_DEEPSEEK_* / PRICE_QWEN_*），未知模型回落到
+    PRICE_IN_PER_M / PRICE_OUT_PER_M。默认值只在"没配"时生效，不是猜的价格。
+    """
+    m = (model or "").lower()
+    legacy_in = float(os.environ.get("PRICE_IN_PER_M", "1.07") or 1.07)
+    legacy_out = float(os.environ.get("PRICE_OUT_PER_M", "4.29") or 4.29)
+    if m.startswith("deepseek"):
+        return (
+            float(os.environ.get("PRICE_DEEPSEEK_INPUT", "") or legacy_in),
+            float(os.environ.get("PRICE_DEEPSEEK_OUTPUT", "") or legacy_out),
+        )
+    if m.startswith("qwen"):
+        return (
+            float(os.environ.get("PRICE_QWEN_INPUT", "") or legacy_in),
+            float(os.environ.get("PRICE_QWEN_OUTPUT", "") or legacy_out),
+        )
+    return legacy_in, legacy_out
+
+
+def _fallback_price(model: str) -> tuple[float, float]:
+    return _price_for(model)
+
+
+# 哪些错误应该切备用模型。
+# 401 也要切：key 写错/被轮换时主模型必然 401，而备用模型 key 是独立的——
+# 这正是"主模型挂了但服务还能答"的典型场景（验收用例就是改错主模型 key）。
+_SWITCH_STATUS = {401, 403, 408, 429, 500, 502, 503, 504}
+
+
+def _should_switch(exc: Exception) -> bool:
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int) and status in _SWITCH_STATUS:
+        return True
+    name = type(exc).__name__
+    return any(k in name for k in ("Timeout", "Connection", "APIConnection", "ConnectError"))
+
+
+_fallback_client: AsyncOpenAI | None = None
+
+
+def fallback_enabled() -> bool:
+    """备用模型是否配全（模型名 + key + 端点）。缺一项就视为没配。"""
+    return bool(
+        os.environ.get("LLM_FALLBACK_MODEL")
+        and os.environ.get("LLM_FALLBACK_API_KEY")
+        and os.environ.get("LLM_FALLBACK_BASE_URL")
+    )
+
+
+def fallback_client() -> AsyncOpenAI:
+    global _fallback_client
+    if _fallback_client is None:
+        _fallback_client = AsyncOpenAI(
+            api_key=os.environ["LLM_FALLBACK_API_KEY"],
+            base_url=os.environ["LLM_FALLBACK_BASE_URL"],
+            timeout=180,
+            max_retries=0,
+        )
+    return _fallback_client
+
+
+def _model_of(which: str) -> str:
+    if which == "fallback":
+        return os.environ.get("LLM_FALLBACK_MODEL", "")
+    return os.environ.get("LLM_MODEL", "deepseek-chat")
 
 
 class Usage:
@@ -73,13 +147,23 @@ class Usage:
         self.completion_tokens = 0
         self.seconds = 0.0
         self.retries = 0
+        # 按模型分桶：主模型失败切到备用之后，两个模型的输入/输出价格不同，
+        # 混在一起算成本就是错的。键是实际用过的模型名。
+        self.by_model: dict[str, list[int]] = {}
+        self.model_used = ""
+        self.fallbacks = 0
 
     def add(self, prompt_tokens: int = 0, completion_tokens: int = 0,
-            seconds: float = 0.0, calls: int = 0) -> None:
+            seconds: float = 0.0, calls: int = 0, model: str = "") -> None:
         self.prompt_tokens += prompt_tokens
         self.completion_tokens += completion_tokens
         self.seconds += seconds
         self.calls += calls
+        if model:
+            bucket = self.by_model.setdefault(model, [0, 0])
+            bucket[0] += prompt_tokens
+            bucket[1] += completion_tokens
+            self.model_used = model
 
     @property
     def total_tokens(self) -> int:
@@ -87,10 +171,23 @@ class Usage:
 
     @property
     def cost(self) -> float:
-        """单价从 .env 读，默认按 deepseek-chat 低峰价折算（$0.15 / $0.60 每百万，汇率 7.15）。"""
-        pin = float(os.environ.get("PRICE_IN_PER_M", "1.07"))
-        pout = float(os.environ.get("PRICE_OUT_PER_M", "4.29"))
-        return self.prompt_tokens / 1e6 * pin + self.completion_tokens / 1e6 * pout
+        """按 model_used 分别取价再求和。
+
+        为什么不能一个价算所有：主模型 deepseek-chat 与备用 qwen-plus 的单价差一个量级，
+        发生切换的那次请求如果按主模型价折算，成本会被高估（或低估）几倍。
+        分桶之后，即使一次请求里既有主模型调用又有备用模型调用，也能算准。
+
+        单价来源见 docs/DEPLOY.md 第 15 节；没配置对应变量时回落到
+        PRICE_IN_PER_M / PRICE_OUT_PER_M（兼容旧配置）。
+        """
+        if not self.by_model:
+            pin, pout = _fallback_price("")
+            return self.prompt_tokens / 1e6 * pin + self.completion_tokens / 1e6 * pout
+        total = 0.0
+        for model, (tin, tout) in self.by_model.items():
+            pin, pout = _price_for(model)
+            total += tin / 1e6 * pin + tout / 1e6 * pout
+        return total
 
     def snapshot(self) -> dict:
         return {
@@ -99,6 +196,8 @@ class Usage:
             "completion_tokens": self.completion_tokens,
             "seconds": round(self.seconds, 2),
             "cost": round(self.cost, 6),
+            "model_used": self.model_used,
+            "fallbacks": self.fallbacks,
         }
 
     def lines(self) -> list[str]:
@@ -129,11 +228,20 @@ def track_usage():
         _LOCAL.reset(token)
 
 
-def _record(prompt_tokens: int, completion_tokens: int, seconds: float, calls: int = 1) -> None:
-    USAGE.add(prompt_tokens, completion_tokens, seconds, calls)
+def _record(prompt_tokens: int, completion_tokens: int, seconds: float,
+            calls: int = 1, model: str = "") -> None:
+    USAGE.add(prompt_tokens, completion_tokens, seconds, calls, model=model)
     local = _LOCAL.get()
     if local is not None:
-        local.add(prompt_tokens, completion_tokens, seconds, calls)
+        local.add(prompt_tokens, completion_tokens, seconds, calls, model=model)
+
+
+def _mark_fallback() -> None:
+    """记一次"切到备用"。只加计数，不改变后续行为——切完不再回试主模型。"""
+    USAGE.fallbacks += 1
+    local = _LOCAL.get()
+    if local is not None:
+        local.fallbacks += 1
 
 
 def reset_usage() -> None:
@@ -155,6 +263,34 @@ def client() -> AsyncOpenAI:
     return _client
 
 
+async def _once(which: str, messages: list[dict], opts: dict) -> str:
+    """向指定模型发一次请求并记账。``which`` 是 primary / fallback。
+
+    extra_body 按来源分开：主模型可能是 DeepSeek（不认识 enable_thinking），
+    备用可能是通义（需要 enable_thinking=false）。用同一份 extras 会一边报错。
+    """
+    cli = client() if which == "primary" else fallback_client()
+    model = _model_of(which)
+    call_opts = dict(opts)
+    extras = _vendor_extras(which)
+    if extras:
+        eb = dict(call_opts.get("extra_body") or {})
+        for k, v in extras.items():
+            eb.setdefault(k, v)
+        call_opts["extra_body"] = eb
+    else:
+        call_opts.pop("extra_body", None)
+
+    t0 = time.perf_counter()
+    r = await cli.chat.completions.create(model=model, messages=messages, **call_opts)
+    dt = time.perf_counter() - t0
+    if r.usage:
+        _record(r.usage.prompt_tokens, r.usage.completion_tokens, dt, model=model)
+    else:
+        _record(0, 0, dt, model=model)
+    return (r.choices[0].message.content or "").strip()
+
+
 async def llm_func(
     prompt: str,
     system_prompt: str | None = None,
@@ -174,13 +310,6 @@ async def llm_func(
     # 不能直接 setdefault 到 opts 上——openai SDK 只接受它认识的顶层参数名，
     # 其余字段一律走 extra_body 透传，否则会 TypeError: unexpected keyword argument
     # （实测踩过：enable_thinking 被当成顶层参数直接报错，三关全挂）。
-    _extras = _vendor_extras()
-    if _extras:
-        _eb = dict(opts.get("extra_body") or {})
-        for _k, _v in _extras.items():
-            _eb.setdefault(_k, _v)
-        opts["extra_body"] = _eb
-
     # 重试次数与退避。默认 3 次（服务端用，用户最多等 6 秒）；
     # 评测跑批设 LLM_RETRIES=5（最多等 60 秒），因为一次 25 分钟的长跑
     # 不该被一次几十秒的网络抖动毁掉——实测踩过：代理端口切换导致整轮 124 题
@@ -188,26 +317,45 @@ async def llm_func(
     attempts = max(1, int(os.environ.get("LLM_RETRIES", "3")))
     last: Exception | None = None
     for attempt in range(attempts):
-        t0 = time.perf_counter()
         try:
-            r = await client().chat.completions.create(
-                model=os.environ.get("LLM_MODEL", "deepseek-chat"),
-                messages=messages,
-                **opts,
-            )
-            dt = time.perf_counter() - t0
-            if r.usage:
-                _record(r.usage.prompt_tokens, r.usage.completion_tokens, dt)
-            else:
-                _record(0, 0, dt)
-            return (r.choices[0].message.content or "").strip()
-        except Exception as e:  # 限流 / 网络抖动 / 5xx
+            return await _once("primary", messages, opts)
+        except Exception as e:  # 限流 / 网络抖动 / 5xx / key 失效
             last = e
             USAGE.retries += 1
             if attempt == attempts - 1:
-                raise
+                break
             await asyncio.sleep(2 ** (attempt + 1))
+
+    # 主模型彻底失败：能切就切，切完**不再回试主模型**（避免抖动时来回横跳）。
+    if last is not None and _should_switch(last) and fallback_enabled():
+        logger.warning(
+            "[llm] 主模型 %s 失败（%s: %s），切备用 %s",
+            _model_of("primary"), type(last).__name__, str(last)[:120],
+            _model_of("fallback"),
+        )
+        _mark_fallback()
+        return await _once("fallback", messages, opts)
     raise last  # pragma: no cover
+
+
+async def _open_stream(which: str, messages: list[dict], opts: dict):
+    """建立流式请求，返回 (stream, model)。参数处理与 _once 一致。"""
+    cli = client() if which == "primary" else fallback_client()
+    model = _model_of(which)
+    call_opts = dict(opts)
+    extras = _vendor_extras(which)
+    if extras:
+        eb = dict(call_opts.get("extra_body") or {})
+        for k, v in extras.items():
+            eb.setdefault(k, v)
+        call_opts["extra_body"] = eb
+    else:
+        call_opts.pop("extra_body", None)
+    stream = await cli.chat.completions.create(
+        model=model, messages=messages, stream=True,
+        stream_options={"include_usage": True}, **call_opts,
+    )
+    return stream, model
 
 
 async def llm_stream(
@@ -233,25 +381,19 @@ async def llm_stream(
 
     opts = {k: v for k, v in kwargs.items() if k in _ALLOWED and v is not None}
     opts.setdefault("max_tokens", 4096)
-    # 环境变量里的厂商私有参数，统一塞进 extra_body。
-    # 不能直接 setdefault 到 opts 上——openai SDK 只接受它认识的顶层参数名，
-    # 其余字段一律走 extra_body 透传，否则会 TypeError: unexpected keyword argument
-    # （实测踩过：enable_thinking 被当成顶层参数直接报错，三关全挂）。
-    _extras = _vendor_extras()
-    if _extras:
-        _eb = dict(opts.get("extra_body") or {})
-        for _k, _v in _extras.items():
-            _eb.setdefault(_k, _v)
-        opts["extra_body"] = _eb
-
+    # 建流这一步也可能失败（key 失效 / 5xx / 超时）。必须在**拿到流之前**切，
+    # 一旦开始 yield 就无法安全地换模型重来——用户会看到答案被截断。
     t0 = time.perf_counter()
-    stream = await client().chat.completions.create(
-        model=os.environ.get("LLM_MODEL", "deepseek-chat"),
-        messages=messages,
-        stream=True,
-        stream_options={"include_usage": True},
-        **opts,
-    )
+    try:
+        stream, used_model = await _open_stream("primary", messages, opts)
+    except Exception as e:  # noqa: BLE001
+        if _should_switch(e) and fallback_enabled():
+            logger.warning("[llm-stream] 主模型建流失败（%s: %s），切备用 %s",
+                           type(e).__name__, str(e)[:120], _model_of("fallback"))
+            _mark_fallback()
+            stream, used_model = await _open_stream("fallback", messages, opts)
+        else:
+            raise
     buf: list[str] = []
     usage = None
     async for chunk in stream:
@@ -267,13 +409,13 @@ async def llm_stream(
 
     dt = time.perf_counter() - t0
     if usage is not None:
-        _record(usage.prompt_tokens, usage.completion_tokens, dt)
+        _record(usage.prompt_tokens, usage.completion_tokens, dt, model=used_model)
         info = {"prompt_tokens": usage.prompt_tokens, "completion_tokens": usage.completion_tokens,
-                "estimated": False}
+                "estimated": False, "model_used": used_model}
     else:
         text = "".join(buf)
         pin = len(prompt) + len(system_prompt or "")
         info = {"prompt_tokens": int(pin * 0.6), "completion_tokens": int(len(text) * 0.6),
-                "estimated": True}
-        _record(info["prompt_tokens"], info["completion_tokens"], dt)
+                "estimated": True, "model_used": used_model}
+        _record(info["prompt_tokens"], info["completion_tokens"], dt, model=used_model)
     yield {"__usage__": info}

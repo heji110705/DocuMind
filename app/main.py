@@ -50,7 +50,7 @@ from app.tenancy import TenantPool  # noqa: E402
 from index_stats import chunks_by_file, documents_of  # noqa: E402
 from llm_client import Usage, llm_stream, track_usage  # noqa: E402
 from query import (REFUSAL_TEXT, DocuMind, _parse_citations,  # noqa: E402
-                   build_answer_prompt, is_refusal)
+                   _repair_citations, build_answer_prompt, is_refusal)
 
 # 静态资源的 MIME 必须在挂载 StaticFiles 之前注册好（见 app/mime.py）
 mime.register()
@@ -456,7 +456,9 @@ async def ask_stream(body: dict, request: Request):
                     await q.put(("stage", {"name": "answer", "status": "end",
                                            "ms": int((time.perf_counter() - t2) * 1000)}))
 
-                    cites = _parse_citations(text, len(chunks))
+                    cites, oob, repaired = _repair_citations(
+                        text, _parse_citations(text, len(chunks)), len(chunks)
+                    )
                     await q.put(("citations", {"items": [
                         {
                             "n": i,
@@ -526,6 +528,9 @@ async def ask(body: dict, request: Request):
         "answer": a.answer,
         "refused": a.refused,
         "citations": a.citations,
+        "citation_oob": a.extra.get("citation_oob", 0),
+        "citation_repair": a.extra.get("citation_repair", False),
+        "model_used": a.extra.get("model_used", ""),
         "chunks": [{"n": i, "file_path": c.get("file_path"), "snippet": (c.get("content") or "")[:600]}
                    for i, c in enumerate(a.chunks, 1) if i in a.citations],
         "standalone": a.extra.get("standalone"),

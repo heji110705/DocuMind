@@ -351,3 +351,67 @@ LLM_MODEL=qwen-plus        # .env，改完 docker compose up -d --force-recreate
 **已知缺陷**：qwen-plus 偶发引用越界（只有 6 块却写 `[16]`），
 `parse_citations` 会丢弃越界编号，于是 `/v1/ask` 返回的 `chunks` 为空、界面来源空白。
 已在证据块开头加了"共 N 条、编号 1–N"，但**没有根治**（30 题里仍出现约 1/4）。
+
+---
+
+## 15. 主备双模型 + 真实价格表（2026-11-18）
+
+**动机**：11-18 下午 `qwen3.7-flash` 的 1M 免费额度被实验跑光，线上直接 500——
+访客看到的是"项目挂了"，而根因只是额度。**单一模型就是这个 Demo 的单点故障。**
+
+### 15.1 配置（`.env`，不进 git）
+
+```bash
+# 主：DeepSeek
+LLM_MODEL=deepseek-chat
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_API_KEY=sk-...            # DeepSeek key
+LLM_EXTRA_BODY=               # DeepSeek 不认识 enable_thinking，必须留空
+
+# 备：通义百炼
+LLM_FALLBACK_MODEL=qwen-plus
+LLM_FALLBACK_BASE_URL=https://ws-xxxx.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
+LLM_FALLBACK_API_KEY=sk-ws-...
+LLM_FALLBACK_EXTRA_BODY={"enable_thinking": false}
+
+# 价格表（元 / 百万 token）
+PRICE_DEEPSEEK_INPUT=1.07
+PRICE_DEEPSEEK_OUTPUT=4.29
+# PRICE_QWEN_INPUT / PRICE_QWEN_OUTPUT：**未核实，故意留空**
+```
+
+> ⚠️ **`PRICE_QWEN_*` 留空是有意的**：qwen-plus 的单价我没有在控制台核实到，
+> 不编数字。留空时回落到 `PRICE_IN_PER_M` / `PRICE_OUT_PER_M`（= DeepSeek 价），
+> 所以**发生 failover 的那几笔成本偏高估**，token 数不受影响。
+
+### 15.2 切换规则
+
+- 触发条件：401 / 403 / 408 / 429 / 5xx，或超时、连接错误。
+  **401 也算**——key 写错或被轮换时主模型必然 401，这正是"主模型挂了但服务还能答"的场景。
+- 主模型先按 `LLM_RETRIES`（默认 3）重试 + 指数退避；**全部失败才切**。
+- 切完**不再回试主模型**，避免抖动时来回横跳。
+- 切换会在日志里留一行 `[llm] 主模型 ... 失败（...），切备用 ...`，并计入 `fallbacks` 计数。
+- 响应新增 `model_used`，客户端能看出这一次到底用了谁。
+
+### 15.3 验收（实测）
+
+容器内注入坏 key（不动线上配置）：
+
+```
+主 key 正常 → reply='收到' model_used=deepseek-chat fallbacks=0
+主 key 坏   → [llm] 主模型 deepseek-chat 失败（AuthenticationError: 401 ...），切备用 qwen-plus
+              reply='收到' model_used=qwen-plus fallbacks=1
+```
+
+线上整链验证过一次：把 `.env` 的 `LLM_API_KEY` 改成 `sk-bad-key` → `/v1/ask` 返回
+**200 + `model_used=qwen-plus`**；恢复 key 后回到 `deepseek-chat`。
+
+### 15.4 踩坑（两次都是我自己的配置错，不是代码错）
+
+1. 第一次 failover 的 500：`LLM_FALLBACK_BASE_URL` 写成了 `https://api.deepseek.com`
+   ——我从**本地** `.env` 抓的 URL，本地那份指向 DeepSeek。报错是
+   `supported API model names are deepseek-flash, deepseek-v4-pro, but you passed qwen-plus`。
+2. 第二次 500：`LLM_FALLBACK_API_KEY` 也是本地那份（旧的、401 的 key）。
+   从服务器 `.env.bak2` 取容器真正在用的那把才对。
+
+**教训**：`LLM_API_KEY` 这种变量在本地和线上是两把不同的 key，跨机器抄配置一定会抄错。

@@ -50,6 +50,7 @@ from prompts import (CONDENSE_PROMPT, JUDGE_PROMPT, build_answer_prompt,  # noqa
 from chunk_dedup import dedupe, threshold_from_env as dedup_threshold  # noqa: E402
 from context_budget import apply_budget, budget_from_env, cap_chunk_top_k  # noqa: E402
 from prompts import parse_citations as _parse_citations  # noqa: E402
+from prompts import repair_citations as _repair_citations  # noqa: E402
 from llm_client import llm_func, track_usage  # noqa: E402
 # 常量集中在 query_consts，这里的 import 是"对外继续暴露"的兼容层：
 # 老代码里的 `from query import DEFAULT_TOP_K` 仍然有效，但真实定义只有一处。
@@ -376,11 +377,16 @@ class DocuMind:
 
             def finish(text: str, refused: bool) -> Answer:
                 ms = int((time.perf_counter() - t0) * 1000)
+                # 先按正常口径解析；若一个合法引用都没有但答案里确有 [n]，
+                # 按"就近映射到已有块"兜底，并如实标记 citation_repair。
+                cites, oob, repaired = _repair_citations(
+                    text, _parse_citations(text, len(chunks)), len(chunks)
+                )
                 return Answer(
                     question=question,
                     answer=text,
                     refused=refused,
-                    citations=_parse_citations(text, len(chunks)),
+                    citations=cites,
                     chunks=chunks,
                     latency_ms=ms,
                     mode=mode,
@@ -395,6 +401,9 @@ class DocuMind:
                         "n_chunks": len(chunks),
                         "standalone": standalone,
                         "history_used": len(history or []),
+                        "citation_oob": oob,
+                        "citation_repair": repaired,
+                        "model_used": used.model_used,
                         "budget": budget_stats,
                         "dedup": dedup_stats,
                     },

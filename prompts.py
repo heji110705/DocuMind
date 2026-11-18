@@ -173,3 +173,31 @@ def clean_rewrite(raw: str, fallback: str) -> str:
 # 但真实定义只在这里一处。
 _parse_citations = parse_citations
 _evidence_block = evidence_block
+
+def repair_citations(
+    text: str, citations: list[int], n_chunks: int
+) -> tuple[list[int], int, bool]:
+    """越界引用的兜底：返回 (引用列表, 越界个数, 是否回填过)。
+
+    背景：模型会写不存在的编号（实测 qwen-plus 只有 6 块却写 [16]）。
+    ``parse_citations`` 把越界编号丢掉之后，``citations`` 变空，而响应里的
+    ``chunks`` 是"只回被引用的块"——于是访客看到"答案对、来源空白"。
+
+    回填规则按需求定：**块序号就近映射，n > len(chunks) 时取最后一块**。
+    只在"原本一个合法引用都没有、且确实存在越界编号"时才回填——
+    已经有一半引用合法的情况不动它，避免把噪声引到对的引用上。
+
+    回填是"承认模型写错了序号，但仍把来源给出来"，所以必须如实标记
+    ``citation_repair=True``，不能假装这是正常引用。
+    """
+    nums = [int(m.group(1)) for m in re.finditer(r"\[(\d{1,2})\]", text or "")]
+    oob = [k for k in nums if not (1 <= k <= n_chunks)]
+    if citations or not oob or n_chunks <= 0:
+        return citations, len(oob), False
+
+    mapped: list[int] = []
+    for k in oob:
+        idx = min(max(k, 1), n_chunks)  # 越界统一落到最后一块
+        if idx not in mapped:
+            mapped.append(idx)
+    return mapped, len(oob), True
