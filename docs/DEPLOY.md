@@ -479,3 +479,21 @@ python scripts/drill_fallback.py             # 完整四步
 
 脚本只在**进程内存**里改 `os.environ`，不写回 `.env`，退出即恢复；
 坏 key 用固定的 `sk-drill-invalid-key-0000`，不会碰到你真实的 key。
+
+### 15.5 生产状态（2026-11-19）
+
+`.env` 里已显式设置 `LLM_FALLBACK_ENABLED=1`。
+
+**为什么必须显式写**：`llm_client.fallback_enabled()` 要求这个开关为 1 才启用 failover
+（默认关，理由见上一节引用的"为什么默认不 failover"）。
+线上如果只配了 `LLM_FALLBACK_*` 三项而漏了这个开关，**failover 不会生效，而且没有任何报错**
+——这是一个静默失效点，所以写在这里。
+
+**四步演练结果**（`scripts/drill_fallback.py`，在容器内跑，全部 PASS）：
+
+| 步骤 | 期望 | 实测 |
+|---|---|---|
+| 1 真 key + 关 failover | 主模型 | `model_used=deepseek-chat` PASS |
+| 2 坏 key + 开 failover | 切备用 | `model_used=qwen-plus, fallbacks=1` PASS |
+| 3 坏 key + 关 failover | 直接抛，不重试 | `LLMAuthError, retries=0` PASS |
+| 4 恢复真 key | 回主模型 | `model_used=deepseek-chat` PASS |
