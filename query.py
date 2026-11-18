@@ -47,6 +47,7 @@ from index_stats import count_chunks, index_stats  # noqa: E402
 from prompts import (CONDENSE_PROMPT, JUDGE_PROMPT, build_answer_prompt,  # noqa: E402,F401
                      build_history_block, clean_rewrite, evidence_block,
                      is_refusal, parse_verdict)
+from context_budget import apply_budget, budget_from_env, cap_chunk_top_k  # noqa: E402
 from prompts import parse_citations as _parse_citations  # noqa: E402
 from llm_client import llm_func, track_usage  # noqa: E402
 # 常量集中在 query_consts，这里的 import 是"对外继续暴露"的兼容层：
@@ -193,10 +194,14 @@ class DocuMind:
     ) -> tuple[list[dict], bool]:
         """只取证据，不调作答模型。返回 (chunks, 实际是否启用了重排)。
 
+        进来先把 chunk_top_k 压到预算上限：这是"少召回"，比事后裁剪更省
+        （连重排都要处理的候选一起少了）。开关关着时这一行是恒等变换。
+
         CLI、流式接口、评测都走这一个方法，保证三个入口召回的东西完全一致。
         重排是 CPU 独占资源，服务端注入 self.lock 之后这一段会串行；
         LLM 调用不在锁里，所以多个请求仍然可以同时判定和作答。
         """
+        chunk_top_k = cap_chunk_top_k(chunk_top_k, budget_from_env())
         assert self.rag is not None, "先 await open()"
         if self.lock is None:
             return await self._retrieve(question, mode, rerank, top_k, chunk_top_k)
@@ -362,6 +367,9 @@ class DocuMind:
             chunks, used_rerank = await self.retrieve(
                 standalone, mode=mode, rerank=rerank, top_k=top_k, chunk_top_k=chunk_top_k
             )
+            # 预算裁剪必须在这里：judge、提示词、引用编号、响应 chunks 共用这一份列表。
+            # 若只在拼提示词时裁，答案里的 [n] 会指向被裁掉之后错位的编号。
+            chunks, budget_stats = apply_budget(chunks, budget_from_env())
 
             def finish(text: str, refused: bool) -> Answer:
                 ms = int((time.perf_counter() - t0) * 1000)
@@ -384,6 +392,7 @@ class DocuMind:
                         "n_chunks": len(chunks),
                         "standalone": standalone,
                         "history_used": len(history or []),
+                        "budget": budget_stats,
                     },
                 )
 
