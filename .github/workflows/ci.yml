@@ -78,3 +78,55 @@ jobs:
         env:
           # 指标与重排模型在测试里都是懒加载，这里只保证不会去连外网下载
           HF_HUB_OFFLINE: "0"
+
+  # ---------------------------------------------------------------- 线上评测门禁
+  # 为什么只在 push 到主干 / 手动触发时跑：这个 job 真的打线上模型，20 题约 ¥0.12。
+  # 挂在每个 PR 的每次 commit 上，一是烧钱，二是 PR 期间模型还在改，门禁必然红——
+  # 那种红只会训练人无视 CI。
+  #
+  # 为什么不需要 pip install：eval_platform 只用标准库（urllib / json / sqlite3），
+  # 这样门禁不会因为"装依赖失败"而红，也不会拖慢 job。
+  eval_gate:
+    name: 线上可答率门禁（20 题，约 ¥0.12）
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 评测代码自己先过单测：判据错了，门禁的数字就没有意义。
+      - name: 评测中台自检
+        run: python -m unittest discover -s eval_platform/tests -t .
+
+      - name: 采集 20 题（打线上 /v1/ask）
+        env:
+          DOCUMIND_KEY: ${{ secrets.DOCUMIND_KEY }}
+        run: |
+          set -euo pipefail
+          EXTRA=""
+          if [ -n "${DOCUMIND_KEY:-}" ]; then EXTRA="--api-key $DOCUMIND_KEY"; fi
+          python -m eval_platform run --suite documind \
+            --tag "ci-${GITHUB_SHA:0:7}" --limit 20 --yes --quiet \
+            --out eval_runs/ci-latest.json $EXTRA
+
+      # 阈值按「掉几题」而不是 pp：20 题里只有 16 道可答题，2pp = 0.32 题，
+      # 实际效果是"掉 1 题就红"（6.25pp），而同配置复跑的正常波动就是 0~2 题。
+      # 所以宽容 2 题：掉 1 题放过、掉 2 题红。
+      - name: 门禁（可答数掉满 2 题就失败）
+        run: python -m eval_platform gate eval_runs/baseline.json eval_runs/ci-latest.json --max-drop-n 2
+
+      # 失败也上传：红了以后第一件事是看"哪几题新错、新旧答案分别是什么"。
+      - name: 上传本次 run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-run-${{ github.sha }}
+          path: eval_runs/ci-latest.json
+          if-no-files-found: warn

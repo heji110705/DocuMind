@@ -1,0 +1,624 @@
+{
+ "schema": 1,
+ "suite": "documind",
+ "tag": "baseline-ci-20",
+ "created_at": "2026-11-19T22:22:43",
+ "config": {
+  "base_url": "http://8.163.90.97",
+  "ask_path": "/v1/ask",
+  "judge": "关键词组命中（组间 AND、组内 OR）+ 必拒题必须拒答且不编造",
+  "mode": "mix",
+  "gold": "eval_set_v2.json",
+  "limit": 20,
+  "only": "",
+  "sleep_s": 2.0,
+  "wall_seconds": 194.2,
+  "n_error": 0,
+  "n_rate_limited": 0,
+  "note": "CI 门禁锚点（20 题、等距取样）。它不是对外口径——对外口径是全量，只用来回答\"这一次有没有退步\"。只许人工更新。"
+ },
+ "items": [
+  {
+   "id": "Q095",
+   "type": "refuse",
+   "question": "你们和市面上的 Text2SQL 商业产品相比，准确率高多少？",
+   "task": "竞品对比",
+   "answer": "证据不足：文档中未提及相关内容。",
+   "refused": true,
+   "contexts": [],
+   "citations": [],
+   "elapsed_ms": 616,
+   "wall_ms": 728,
+   "cost_cny": 0.003328,
+   "tokens": 3071,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": true,
+   "must": [],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q102",
+   "type": "refuse",
+   "question": "公司去年全年的营业收入是多少？",
+   "task": "经营",
+   "answer": "证据不足：文档中未提及相关内容。",
+   "refused": true,
+   "contexts": [],
+   "citations": [],
+   "elapsed_ms": 1407,
+   "wall_ms": 1484,
+   "cost_cny": 0.005464,
+   "tokens": 4905,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": true,
+   "must": [],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q110",
+   "type": "refuse",
+   "question": "商业授权一年的费用是多少？",
+   "task": "许可",
+   "answer": "证据不足：文档中未提及相关内容。",
+   "refused": true,
+   "contexts": [],
+   "citations": [],
+   "elapsed_ms": 1368,
+   "wall_ms": 1511,
+   "cost_cny": 0.005484,
+   "tokens": 4942,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": true,
+   "must": [],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q117",
+   "type": "refuse",
+   "question": "用户数据的跨境传输适用哪条法律条款？",
+   "task": "法务",
+   "answer": "证据不足：文档中未提及相关内容。",
+   "refused": true,
+   "contexts": [],
+   "citations": [],
+   "elapsed_ms": 1609,
+   "wall_ms": 1677,
+   "cost_cny": 0.005624,
+   "tokens": 4985,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": true,
+   "must": [],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q001",
+   "type": "fact",
+   "question": "fact_order 这张表的粒度是什么？",
+   "task": "grain",
+   "answer": "`fact_order` 的粒度是“一单一书一行”，即一行对应一个订单中的一本书 [2]。\n\n依据：文档在讲建模规矩时明确说明 `fact_order` 是“一单一书一行”，因此任何“订单数”都必须去重 [2]。",
+   "refused": false,
+   "contexts": [
+    "# 查询模板与建模规范\n\n12 个模板覆盖了实际提问的绝大多数形态。模板的作用不是让模型照抄，\n而是让它在生成时有个\"形状\"可参照——尤其在比率、同比、留存这三类上，\n模型自己发挥的错误率明显更高。\n\n## 一、建模的三条硬规矩\n\n**先定粒度，再写 SQL。** 每张表的粒度都写在字段字典的第一行。\n`fact_order` 是\"一单一书一行\"，所以任何\"订单数\"都必须去重。\n粒度没定就写聚合，错了也不会报错，只会静默给出一个偏大的数。\n\n**维度表和事实表分开。** 维度表放属性（书名、分类、渠道），事实表放事件（评分、点击、订单）。\n合并成一张宽表看起来省事，代价是任何一个属性变更都要回刷历史事实，而且事实表会膨胀十倍。\n\n**不要在事实表里存派生指标。** 折扣深度、客单价这类都由 SQL 现算。\n存下来就会有\"存的值\"和\"算的值\"两个版本，早晚对不上。\n唯一的例外是 `dim_book.rating_avg`——它是每夜重算的快照，因为逐题实时算 286 万行太慢。\n这个例外在字段字典里写明了。\n\n## 二、12 个模板\n\n\n### T01 单指标总量\n\n适用：问「一共有多少」「总共多少」时用，不带分组。\n\n```sql\nSELECT COUNT(*) AS 在售书目数 FROM dim_book WHERE is_active = 1;\n```\n\n\n### T02 按维"
+   ],
+   "citations": [
+    2
+   ],
+   "elapsed_ms": 1802,
+   "wall_ms": 2001,
+   "cost_cny": 0.007482,
+   "tokens": 6725,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "一单一书",
+     "订单行"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q006",
+   "type": "fact",
+   "question": "计算 DAU 时应该用哪个字段去重？",
+   "task": "field",
+   "answer": "计算 DAU 应该用 `device_id` 去重，而不是 `user_id` [3]。\n\n依据是：31% 的曝光和点击事件没有登录态，`user_id` 为 NULL，而聚合函数会自动忽略 NULL，用 `COUNT(DISTINCT user_id)` 算出的 DAU 会低三成左右 [3]。代价是换机、清缓存会被算成新用户，因此 DAU 天然略高于真实人数，这属于行业通行做法 [3]。",
+   "refused": false,
+   "contexts": [
+    "# 常见问题\n\n按提问频率排序，不按文档结构排序。答案里出现的数字都是实测值，不是估算——\n凡是写\"约\"的地方，是因为跨语料规模会有浮动，不是没测过。\n\n\n## 口径\n\n### 问：订单数为什么要去重？不去重会差多少？\n\n`fact_order` 的粒度是一单一书一行，一个订单买三本书就是三行。直接 `COUNT(*)` 得到的是订单行数，实测比真实订单数高 28%。所以订单数一律 `COUNT(DISTINCT order_id)`，客单价的分母也用这个值。行数本身有用（算平均每单几本书），但它的名字叫 `order_line_cnt`，不叫订单数。\n\n### 问：GMV 到底含不含退款？\n\n分两个指标。`gmv_gross` 含退款，是运营看板的默认值；`gmv_net` 扣掉已退款订单。注意 `refunding`（退款中）两个指标都算进去，只有 `refunded` 才从净额里扣。对外汇报如果只说「GMV」，默认指 `gmv_gross`，但最好把口径写出来。\n\n### 问：为什么站内评分不能和豆瓣评分一起算？\n\n三个原因：样本不同（站内是购买用户，豆瓣是全网）、量纲虽同为 10 分制但分布不同、覆盖不同（豆瓣有 11% 的书为空）。把两者求平均得到的数没有业务含义。如果要做「站内评分相对豆瓣评分的偏移」，那是一个差值指标，需要显式过滤空值后再算。\n\n### 问：DAU 为"
+   ],
+   "citations": [
+    3
+   ],
+   "elapsed_ms": 1459,
+   "wall_ms": 1578,
+   "cost_cny": 0.008442,
+   "tokens": 7441,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "device_id"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q012",
+   "type": "fact",
+   "question": "discount_amount 和 pay_amount、freight 的关系是什么？",
+   "task": "formula",
+   "answer": "**结论：三者满足 `list_amount - discount_amount + freight = pay_amount`，即优惠金额是从原价中扣除的差额，不能与实付金额相加。**\n\n依据如下：\n\n- `discount_amount` 的口径就是 `list_amount - (pay_amount - freight)`，它是由该式派生出来的差额本身，明确不要与 `pay_amount` 相加 [2]。\n- `pay_amount` 是实付金额，含运费、已扣优惠 [2]；`list_amount` 是应付原价（定价 × 数量）[2]；`freight` 是运费 [2]。\n- 因此把优惠和实付相加，得到的是「原价 + 运费 + 优惠」这种无意义的值 [1]。",
+   "refused": false,
+   "contexts": [
+    "。\n\n### 问：优惠金额为什么不能和实付相加？\n\n因为 `pay_amount` 已经是扣除优惠后的金额，`discount_amount` 是差额本身。正确的关系是 `list_amount - discount_amount + freight = pay_amount`。把优惠和实付相加得到的是「原价 + 运费 + 优惠」这种无意义的值。\n\n### 问：新书上架数按哪个日期算？\n\n按 `launch_date`（站内上架日），不是 `publish_date`（首次出版日）。引进版的书首版日期可能是十几年前，按出版日算会把它们全部推到旧年份，「本月新书」直接归零。\n\n### 问：评论数和评分数的关系？\n\n评论数 ≤ 评分数。一条评分可以不带文字，`has_comment=0`。评论率 = `SUM(has_comment) / COUNT(*)`，两者都限定 `is_valid=1`。常见的错是把评论数当评分人数，或者拿评论数除以订单数（分母都不对）。\n\n### 问：渠道 ROI 为什么不能对自然流量算？\n\n自然流量没有成本分母，除法无定义。计算 ROI 时 `is_paid=0` 的渠道必须排除，分子分母都要排除——只排除分母会让自然流量以「零成本高 ROI」的形式霸榜。\n\n### 问：「销量」和「订单数」差多远？\n\n销量是 `SUM(qty)`（册数），订单数是去重订单",
+    "book_id 为负值（-1 起），需排除\n- 同义词：书\n\n#### `pay_amount`\n\n- 类型：`REAL`，单位 元\n- 含义：实付金额（含运费、已扣优惠）\n- 口径：支付成功时落库\n- 误用：GMV 若用 list_price × qty 会高估；实付口径一律用本字段\n- 同义词：实付、成交金额、支付金额\n\n#### `list_amount`\n\n- 类型：`REAL`，单位 元\n- 含义：应付原价（定价 × 数量）\n- 口径：下单时按 list_price 计算\n- 误用：与 pay_amount 的差是优惠总额，但**不含运费**\n- 同义词：原价金额、应付\n\n#### `discount_amount`\n\n- 类型：`REAL`，单位 元\n- 含义：优惠总额（券 + 活动 + 会员价）\n- 口径：list_amount - (pay_amount - freight)\n- 误用：由上式派生，不要与 pay_amount 相加\n- 同义词：优惠金额、折扣额\n\n#### `freight`\n\n- 类型：`REAL`，单位 元\n- 含义：运费\n- 口径：满 99 包邮，否则 8 元\n- 误用：算毛利率时要剔除运费，算 GMV 时含运费（与财务口径一致）\n- 同义词：邮费、运费\n\n#### `qty`\n\n- 类型：`INTEGER`，单位 本\n- 含义：购买数量\n-"
+   ],
+   "citations": [
+    2,
+    1
+   ],
+   "elapsed_ms": 1852,
+   "wall_ms": 41994,
+   "cost_cny": 0.00866,
+   "tokens": 7531,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "freight"
+    ],
+    [
+     "list_amount"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q018",
+   "type": "fact",
+   "question": "fact_order 的 stat_date 是怎么来的？",
+   "task": "field",
+   "answer": "`fact_order.stat_date` 是由 `pay_time` 派生出来的支付日期，同时它也是该表的分区键 [6]。需要注意，未支付订单的这个字段为 NULL，过滤时要留意 [6]。",
+   "refused": false,
+   "contexts": [
+    "in (refunding, refunded)\n- 误用：退款率分母是支付成功订单数（status in paid/shipped/done/refunding/refunded），不含 closed\n- 同义词：退款标记\n\n#### `channel_id`\n\n- 类型：`INTEGER`\n- 含义：下单来源渠道\n- 口径：归因取末次点击渠道\n- 误用：末次归因与首次归因口径不同，跨渠道对比要统一\n- 同义词：渠道\n\n#### `pay_time`\n\n- 类型：`DATETIME`\n- 含义：支付成功时间\n- 口径：支付回调落库\n- 误用：GMV 按 pay_time 归日，不按下单时间\n- 同义词：支付时间\n\n#### `stat_date`\n\n- 类型：`DATE`\n- 含义：支付日期（分区键）\n- 口径：由 pay_time 派生\n- 误用：未支付订单该字段为 NULL，过滤时要留意\n- 同义词：日期\n\n**关联关系**\n\n- `fact_order.book_id = dim_book.book_id`\n- `fact_order.stat_date = dim_date.full_date`\n\n\n## 10. `bridge_book_tag`\n\n- **粒度**：一行一个（book_id, tag）组合\n- **规模**：96,400 行\n- **定位**：书籍-标"
+   ],
+   "citations": [
+    6
+   ],
+   "elapsed_ms": 1870,
+   "wall_ms": 1986,
+   "cost_cny": 0.008246,
+   "tokens": 7448,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "派生",
+     "pay_time"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q024",
+   "type": "fact",
+   "question": "退款率的分母包不包括未支付的关闭订单？",
+   "task": "metric",
+   "answer": "不包括。退款率的分母是支付成功的订单，即 `status IN ('paid','shipped','done','refunding','refunded')`，不含 `closed` [1][2][3][4]。如果把 `closed` 也算进分母，退款率会被系统性低估约 4 个百分点，2026-03 曾修正过一次，修正后退款率整体上浮 [1]。",
+   "refused": false,
+   "contexts": [
+    "母必须显式限定 `event_type`，因为 2023 年的数据里残留了已废弃的 `view` 类型，不限定会把分母撑大。\n\n### 问：退款率的分母包不包括未支付的关闭单？\n\n不包括。分母是支付成功的订单，即 `status IN ('paid','shipped','done','refunding','refunded')`。如果把 `closed` 也算进分母，退款率会被系统性低估约 4 个百分点——2026-03 修正过一次，修正后退款率整体上浮。\n\n### 问：ARPU 和 ARPPU 差在哪？\n\n分母差一个「是否付费」。ARPU = GMV / 全部活跃用户，ARPPU = GMV / 付费用户。ARPU 用来看整体变现效率，ARPPU 用来看付费用户的钱包深度。两者恒有 ARPPU > ARPU，把它们的曲线放一张图里比较没有意义。\n\n### 问：7 日留存是「第 7 天」还是「7 天内」？\n\n是第 7 天当天活跃，日历日 D+7，不是 7 天内任意一天。后者的数值会高很多，且随窗口定义变化极大。本项目统一用 D+7 当天口径，需要「7 天内」时会显式写成 `retention_7d_cum`，不叫留存。\n\n### 问：ISO 周为什么会切出 53 周？\n\nISO 8601 的周归属按周四所在年计算，年末几天可能属于次年第 1 周。所以按自然年 `year` + ",
+    "_cnt`\n- 单位：元\n- 依赖表：`fact_order`\n- 口径注意：\n  - 分母是去重付费用户\n  - ARPPU 恒大于 ARPU\n\n\n## 10. 付费用户数（`paid_user_cnt`）\n\n- 别名：付款人数、买过的人\n- 定义：去重的下单用户数\n- 公式：`COUNT(DISTINCT user_id) WHERE status <> 'closed'`\n- 单位：人\n- 依赖表：`fact_order`\n- 口径注意：\n  - 跨期去重：多日汇总不能把每日付费用户数相加\n\n\n## 11. 付费转化率（`pay_rate`）\n\n- 别名：下单转化率、付费率\n- 定义：付费用户数除以活跃用户数\n- 公式：`paid_user_cnt / dau_uv`\n- 单位：%\n- 依赖表：`fact_order`, `fact_click`\n- 口径注意：\n  - 分母活跃口径需与报表一致（device_id 去重）\n\n\n## 12. 退款率（`refund_rate`）\n\n- 别名：退货率、退款比例\n- 定义：退款订单数占支付成功订单数的比例\n- 公式：`COUNT(DISTINCT order_id) FILTER is_refund=1 / order_cnt`\n- 单位：%\n- 依赖表：`fact_order`\n- 口径注意：\n  - 分母不含 closed\n ",
+    "in (refunding, refunded)\n- 误用：退款率分母是支付成功订单数（status in paid/shipped/done/refunding/refunded），不含 closed\n- 同义词：退款标记\n\n#### `channel_id`\n\n- 类型：`INTEGER`\n- 含义：下单来源渠道\n- 口径：归因取末次点击渠道\n- 误用：末次归因与首次归因口径不同，跨渠道对比要统一\n- 同义词：渠道\n\n#### `pay_time`\n\n- 类型：`DATETIME`\n- 含义：支付成功时间\n- 口径：支付回调落库\n- 误用：GMV 按 pay_time 归日，不按下单时间\n- 同义词：支付时间\n\n#### `stat_date`\n\n- 类型：`DATE`\n- 含义：支付日期（分区键）\n- 口径：由 pay_time 派生\n- 误用：未支付订单该字段为 NULL，过滤时要留意\n- 同义词：日期\n\n**关联关系**\n\n- `fact_order.book_id = dim_book.book_id`\n- `fact_order.stat_date = dim_date.full_date`\n\n\n## 10. `bridge_book_tag`\n\n- **粒度**：一行一个（book_id, tag）组合\n- **规模**：96,400 行\n- **定位**：书籍-标",
+    "订单数 × 客单价 | 乘法 | 客单价的分母必须是去重订单数 |\n| 订单数 | 曝光 × CTR × CVR | 乘法 | CVR 的分母是点击不是曝光 |\n| 客单价 | 件单价 × 每单件数 | 乘法 | 件单价用实付不用定价 |\n| 退款率 | 退款单数 / 支付成功单数 | 除法 | 分母不含 closed |\n\n这四个关系都能在 `25-查询模板与建模.md` 找到对应的 SQL 模板。\n拆解本身不难，难的是每一步的口径要和上层对得上——\n上层用净额、下层用总额，拆出来的贡献度加起来不等于总变化，\n这种错误在复盘会上极难当场发现。\n\n## 四、三个拆解错误\n\n**错误一：乘法拆解后把贡献度直接相加。** 乘法关系的各因子贡献度不是线性可加的，\n严格做法是对数分解或 Shapley 分解。实务里常用\"先替换一个因子、其余保持基期\"的\n链式替换法，简单但依赖替换顺序。说清用了哪种方法，比用哪种更重要。\n\n**错误二：跨层比较。** 「本月 CTR 提升 2%，但 GMV 下降 1%」不是矛盾，\n因为中间还隔着 CVR 和客单价。把不同层的指标放在一句话里比较，\n听众会以为你在自相矛盾。\n\n**错误三：护栏指标缺失。** 只看北极星会做出\"提高客单价但退款率翻倍\"的决策。\n所以每个北极星下面必须挂 2-3 个护栏指标：退款率、评分、投诉率。\n护栏不参与考核，只做否决——它变"
+   ],
+   "citations": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "elapsed_ms": 2681,
+   "wall_ms": 2785,
+   "cost_cny": 0.009541,
+   "tokens": 8324,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "不包括",
+     "不含"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q030",
+   "type": "fact",
+   "question": "ltv_30d 的观察窗口是多少天？",
+   "task": "metric",
+   "answer": "ltv_30d 的观察窗口是 30 天，即新客在首单后 30 天内的累计净 GMV [1]。需要注意这是 30 天窗口而非全生命周期，并且需要满窗 cohort 才能计算 [1]。",
+   "refused": false,
+   "contexts": [
+    "取首次来源\n\n\n## 30. 30 日 LTV（`ltv_30d`）\n\n- 别名：生命周期价值、用户价值\n- 定义：新客在首单后 30 天内的累计净 GMV\n- 公式：`SUM(gmv_net) WHERE day_diff <= 30`\n- 单位：元\n- 依赖表：`fact_order`\n- 口径注意：\n  - 是 30 天窗口不是全生命周期\n  - 需满窗 cohort 才能算\n\n\n## 31. 折扣深度（`discount_depth`）\n\n- 别名：折扣率、让利幅度\n- 定义：优惠金额占原价金额比例\n- 公式：`SUM(discount_amount) / SUM(list_amount)`\n- 单位：%\n- 依赖表：`fact_order`\n- 口径注意：\n  - 分母不含运费\n  - 与「实际售价/定价」不是同一口径\n\n\n## 32. 会话数（`session_cnt`）\n\n- 别名：启动次数、访问次数\n- 定义：30 分钟无操作切分后的会话条数\n- 公式：`COUNT(DISTINCT session_id)`\n- 单位：次\n- 依赖表：`fact_click`\n- 口径注意：\n  - 切分阈值 30 分钟，不可与其他系统直接对比\n\n\n## 33. 人均会话数（`session_len_avg`）\n\n- 别名：访问频次\n- 定义：会话数除以活跃用户数\n- 公式：`se"
+   ],
+   "citations": [
+    1
+   ],
+   "elapsed_ms": 1968,
+   "wall_ms": 2069,
+   "cost_cny": 0.007825,
+   "tokens": 6868,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "30"
+    ],
+    [
+     "天"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q036",
+   "type": "fact",
+   "question": "order_line_cnt 和 order_cnt 大概差多少倍？",
+   "task": "metric",
+   "answer": "两者相差约 1.28 倍，订单行数比订单数高约 28% [1][2][4]。\n\n依据是：`order_line_cnt` 按 `COUNT(*)` 统计、不去重，而 `order_cnt` 按 `COUNT(DISTINCT order_id)` 去重，差的那部分就是“一单多书”拆出的行 [1][4][5]。",
+   "refused": false,
+   "contexts": [
+    "# 常见问题\n\n按提问频率排序，不按文档结构排序。答案里出现的数字都是实测值，不是估算——\n凡是写\"约\"的地方，是因为跨语料规模会有浮动，不是没测过。\n\n\n## 口径\n\n### 问：订单数为什么要去重？不去重会差多少？\n\n`fact_order` 的粒度是一单一书一行，一个订单买三本书就是三行。直接 `COUNT(*)` 得到的是订单行数，实测比真实订单数高 28%。所以订单数一律 `COUNT(DISTINCT order_id)`，客单价的分母也用这个值。行数本身有用（算平均每单几本书），但它的名字叫 `order_line_cnt`，不叫订单数。\n\n### 问：GMV 到底含不含退款？\n\n分两个指标。`gmv_gross` 含退款，是运营看板的默认值；`gmv_net` 扣掉已退款订单。注意 `refunding`（退款中）两个指标都算进去，只有 `refunded` 才从净额里扣。对外汇报如果只说「GMV」，默认指 `gmv_gross`，但最好把口径写出来。\n\n### 问：为什么站内评分不能和豆瓣评分一起算？\n\n三个原因：样本不同（站内是购买用户，豆瓣是全网）、量纲虽同为 10 分制但分布不同、覆盖不同（豆瓣有 11% 的书为空）。把两者求平均得到的数没有业务含义。如果要做「站内评分相对豆瓣评分的偏移」，那是一个差值指标，需要显式过滤空值后再算。\n\n### 问：DAU 为",
+    "6，翻页后继续递增，不做「第几屏」换算\n- 同义词：坑位\n\n#### `stat_date`\n\n- 类型：`DATE`\n- 含义：事件发生日期\n- 口径：按本地时区切日\n- 误用：与 dim_date.full_date 同类型可直接 join\n- 同义词：日期\n\n#### `event_time`\n\n- 类型：`DATETIME`\n- 含义：事件精确时间\n- 口径：毫秒时间戳转本地时间\n- 误用：埋点延迟最长 6 小时，T+1 报表按 stat_date 汇总而非 event_time 实时流\n- 同义词：事件时间\n\n**关联关系**\n\n- `fact_click.book_id = dim_book.book_id`\n\n\n## 9. `fact_order`\n\n- **粒度**：一行一个订单行（order_id + book_id），一单多书拆多行\n- **规模**：3,420,000 行\n- **定位**：订单事实表，含成交金额、优惠与退款状态\n\n**口径坑（先读这一段）**\n- 订单数一律 COUNT(DISTINCT order_id)\n- GMV 不含 closed，运费计入 GMV\n\n### 字段\n\n#### `order_id`\n\n- 类型：`TEXT`\n- 含义：订单号\n- 口径：业务系统生成，一单多书时多行共享同一 order_id\n- 误用：**订单数必须 C",
+    "- 公式：`COUNT(DISTINCT order_id) WHERE status <> 'closed'`\n- 单位：单\n- 依赖表：`fact_order`\n- 口径注意：\n  - 必须 DISTINCT，一单多书会拆行\n  - 不含未支付关闭单\n\n\n## 5. 订单行数（`order_line_cnt`）\n\n- 别名：订单明细数\n- 定义：订单明细条数，一单一书一行\n- 公式：`COUNT(*) WHERE status <> 'closed'`\n- 单位：行\n- 依赖表：`fact_order`\n- 口径注意：\n  - 不是订单数，两者相差约 1.28 倍\n\n\n## 6. 销量（`sales_qty`）\n\n- 别名：卖了多少本、销售册数\n- 定义：售出册数\n- 公式：`SUM(qty) WHERE status <> 'closed'`\n- 单位：本\n- 依赖表：`fact_order`\n- 口径注意：\n  - 含赠品（book_id < 0）时必须先排除\n\n\n## 7. 客单价（`aov`）\n\n- 别名：平均订单金额、单均价\n- 定义：GMV 除以订单数\n- 公式：`gmv_gross / order_cnt`\n- 单位：元\n- 依赖表：`fact_order`\n- 口径注意：\n  - 分子分母口径要一致（都用含退款或都用净额）\n  - 保留 2 位小数\n\n\n## 8",
+    "管分组行数，ROI 排名另有 100 单门槛）\n\n\n## 指标之间的四组常见混淆\n\n指标字典最容易失效的地方不是\"没定义\"，而是\"定义了两个看起来一样的东西\"。\n下面四组是客服工单里重复出现最多的，背下来比背公式有用。\n\n### 第一组：GMV 的三个版本\n\n`gmv_gross` 含退款、`gmv_net` 扣已退款、财务口径的\"确认收入\"还要再扣未发货部分。\n三者单调递减，差值就是退款额。对外汇报一律说清用的是哪一个；只说\"GMV\"时默认\n`gmv_gross`，因为运营侧的看板默认展示它。\n\n### 第二组：ARPU 与 ARPPU\n\n分母差一个\"是否付费\"。`arpu` 的分母是全部活跃用户，`arppu` 只算付过钱的。\n前者用来判断整体变现效率，后者用来判断付费用户的消费能力。把 ARPU 和 ARPPU\n放在一张图里比较没有意义——它们的量级差异来自分母，不来自业务变化。\n\n### 第三组：订单数与订单行数\n\n`order_cnt` 去重，`order_line_cnt` 不去重。差的那部分就是\"一单多书\"。\n客单价必须用 `order_cnt` 做分母，用行数做分母会得到\"单本书均价\"，\n名字听起来差不多，数值差 28%。\n\n### 第四组：留存与复购\n\n留存看的是\"还来不来\"，复购看的是\"还买不买\"。同一批用户，7 日留存可能 40%，\n30 日复购只有 12%。"
+   ],
+   "citations": [
+    1,
+    2,
+    4,
+    5
+   ],
+   "elapsed_ms": 2917,
+   "wall_ms": 3062,
+   "cost_cny": 0.009518,
+   "tokens": 8369,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "1.28"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q042",
+   "type": "fact",
+   "question": "单条 SQL 的执行超时是多少秒？",
+   "task": "guard",
+   "answer": "单条 SQL 的执行超时是 15 秒 [2][6]。\n\n依据：超时通过 `progress_handler` 实现，每 10ms 回调一次，累计超过 15 秒就返回非零值中断查询 [2][6]。对应的拒绝码是 `E1070` [2]。",
+   "refused": false,
+   "contexts": [
+    "。\n理由：估算比实测便宜，先 EXPLAIN 再执行是硬性顺序。\n拒绝码：`E1072`。\n\n### G12 执行超时 15 秒\n\n做法：sqlite3 progress_handler 每 10ms 检查累计耗时。\n理由：超时中断而不是等它跑完，避免一个笛卡尔积拖垮整个进程。\n拒绝码：`E1070`。\n\n### G13 连接只读\n\n做法：打开时 `mode=ro` + `PRAGMA query_only=1` 双保险。\n理由：即使前 12 条全被绕过，物理上还是写不进去。\n拒绝码：`E1090`。\n\n### G14 敏感列脱敏\n\n做法：user_phone / user_email / id_card 一律不进结果集。\n理由：需要用到时只能取哈希或后四位，且要在 SQL 里显式写 substr。\n拒绝码：`E1061`。\n\n### G15 禁止跨租户表前缀\n\n做法：表名出现 `tenant_` 前缀且不是当前租户即拒绝。\n理由：多租户场景下的越权读取，靠表名前缀隔离。\n拒绝码：`E1061`。\n\n### G16 结果列数上限 50\n\n做法：列数超过 50 的查询被截断并提示。\n理由：列太多通常意味着模型在“把所有字段都选出来”而不是回答问题。\n拒绝码：`E1071`。\n\n### G17 保留字冲突校验\n\n做法：别名与 SQL 保留字冲突时自动加引号。\n理由：不拒绝，改写。中文别",
+    "层拒绝写。\n2. **会话级**：连上后立刻 `PRAGMA query_only = 1`，即使拿到写语句也执行不了。\n3. **语句级**：G01~G08 在解析层就不放行。\n\n超时用 `progress_handler` 实现，每 10ms 回调一次，累计超过 15 秒返回非零值中断查询。\n这个机制的好处是不需要另起线程去 kill，坏处是回调本身的频率会影响长查询性能——\n10ms 是在 2 万行/秒的扫描速度下调出来的，再密会明显掉速。\n\n并发用信号量控制，默认 8 个。这个数字不是拍脑袋：压测时 8 并发下 p99 是 1.4s，\n16 并发就劣化到 4.1s，因为 SQLite 的读锁在写快照重建时会短暂升级。"
+   ],
+   "citations": [
+    2,
+    6
+   ],
+   "elapsed_ms": 2408,
+   "wall_ms": 2529,
+   "cost_cny": 0.008514,
+   "tokens": 7433,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "15"
+    ],
+    [
+     "超时"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q048",
+   "type": "fact",
+   "question": "E1080 证据不足拒答，在接口上是按正常返回还是按错误返回？",
+   "task": "error",
+   "answer": "证据不足：文档中未提及相关内容。",
+   "refused": true,
+   "contexts": [],
+   "citations": [],
+   "elapsed_ms": 1269,
+   "wall_ms": 37413,
+   "cost_cny": 0.004774,
+   "tokens": 4173,
+   "error": null,
+   "kw_hit": false,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "正常"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q053",
+   "type": "fact",
+   "question": "语义层 YAML 校验失败返回什么码？",
+   "task": "error",
+   "answer": "语义层 YAML 校验失败返回 **E1030**，HTTP 状态码为 422，含义是“语义层校验失败”，触发条件是 YAML 结构不满足 schema，处理建议是按错误提示修字段 [2][4]。另外，热重载时如果校验失败，会保留旧配置并返回 E1030 [5]。",
+   "refused": false,
+   "contexts": [
+    "公式循环引用 | metric A 的 formula 引用 B，B 又引用 A | 拆解为原子指标 |\n| E1030 | 422 | 语义层校验失败 | YAML 结构不满足 schema | 按错误提示修字段 |\n| E1031 | 422 | 未知表名 | SQL 引用了 tables.yml 未声明的表 | 先补表卡 |\n| E1032 | 422 | 未知字段 | SQL 引用了表卡未声明的列 | 补列或改 SQL |\n| E1040 | 429 | 租户级限流 | 超过 QPS 配额 | 退避重试，见限流文档 |\n| E1041 | 429 | 日调用额度用尽 | token 日配额耗尽 | 次日重置或申请提额 |\n| E1042 | 429 | 并发闸门已满 | 同时执行的查询超过 max_concurrent_queries | 串行或提高配额 |\n| E1050 | 500 | LLM 调用失败 | 上游 5xx / 超时 | 重试 3 次后降级到规则基线 |\n| E1051 | 500 | LLM 返回非 JSON | 模型输出无法解析为约定结构 | 重试并降低 temperature |\n| E1052 | 500 | 上下文超长 | 检索到的卡片 + 问题超过 32k token | 减少 top_k |\n| E1060 | 400 | SQL 解析失败 ",
+    "# 错误码与排障对照\n\n错误码设计原则：**同一类根因给同一个码**，不按\"哪个模块抛的\"编号。\n所以 `E1061` 既可能是\"引用了敏感列\"，也可能是\"跨租户访问\"，\n因为对上游来说都是\"这条 SQL 不该被执行\"。\n\n码段划分：\n\n| 段 | 范围 | 含义 |\n|---|---|---|\n| E10xx | 1001-1003 | 请求参数问题 |\n| E10xx | 1010-1012 | 权限与租户 |\n| E10xx | 1020-1032 | 语义层配置与校验 |\n| E10xx | 1040-1042 | 限流与配额 |\n| E10xx | 1050-1052 | 模型调用 |\n| E10xx | 1060-1065 | SQL 解析与安全 |\n| E10xx | 1070-1072 | 执行资源 |\n| E10xx | 1080-1081 | 拒答（业务正常返回） |\n| E10xx | 1090-1091 | 服务端状态 |\n\n\n## 全量对照表\n\n| 码 | HTTP | 含义 | 触发条件 | 处理建议 |\n|---|---|---|---|---|\n| E1001 | 400 | 问题为空 | question 为空串或全空白 | 校验 question.strip() 非空 |\n| E1002 | 400 | 问题过长 | question 超过 50",
+    "-ano | findstr :8000` 找进程。\n\n### 问：怎么改语义层配置？\n\n改 `data/semantic/*.yml` 后调 `/v1/admin/reload` 热重载，不用重启。校验失败时保留旧配置并返回 E1030，不会出现「配置改坏了服务起不来」的情况。\n\n### 问：日志在哪？\n\n标准输出（JSON 行格式），由容器运行时收集。trace 单独落 `traces.sqlite`，保留 7 天。两者分工：日志回答「服务是否正常」，trace 回答「这一次为什么答错」。\n\n### 问：怎么备份？\n\n要备的只有两样：`data/semantic/` 配置和 `traces.sqlite`。索引可重建（花钱即可），快照可从上游再导，都不需要备份。\n\n### 问：能多实例部署吗？\n\n只读查询可以。写的地方只有 trace 和 feedback，SQLite 并发写会锁，多实例要换成 PostgreSQL 或把写操作打到一个独立服务。当前默认单实例。\n\n\n## 成本\n\n### 问：一次问答花多少钱？\n\n`full` 模式约 0.026 元，`mix_rr` 约 0.019 元，`naive` 约 0.004 元。差距来自链路长度：full 要检索、生成、自检、判定四步，naive 只生成一次。以上按 deepseek-chat 的低峰单价算，高峰会贵一倍左右。\n\n#"
+   ],
+   "citations": [
+    2,
+    4,
+    5
+   ],
+   "elapsed_ms": 2608,
+   "wall_ms": 3735,
+   "cost_cny": 0.009357,
+   "tokens": 8182,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "E1030"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q059",
+   "type": "fact",
+   "question": "SSE 的保活 ping 间隔是多少秒？",
+   "task": "api",
+   "answer": "SSE 的保活 ping 间隔是 15 秒 [2][4]。\n\n依据：文档说明流式接口每 15s 发一次 ping 保活 [2]；实现细节进一步说明服务端每 15 秒发一条注释行 `: ping`，用于避免反向代理常见的 60s 空闲超时掐断长连接，该注释行不是事件，客户端 `EventSource` 会自动忽略 [4]。",
+   "refused": false,
+   "contexts": [
+    "### `GET /readyz`\n\n就绪探针，检查快照与语义层。鉴权：无。\n\n返回：`{\"ready\":true,\"warehouse\":\"ok\",\"semantic\":\"ok\"}`\n\n说明：快照缺失返回 503 + E1090。\n\n### `POST /v1/ask`\n\n一次问答，同步返回完整结果。鉴权：Bearer。\n\n参数：\n- question (必填, ≤500 字)\n- session_id (可选)\n- mode (naive|mix|mix_rr|full, 默认 full)\n- top_k (默认 6)\n- debug (默认 false)\n\n返回：`answer / sql / rows / trace_id / citations / refused / cost`\n\n说明：p50 1.1s（naive）～9.8s（full）。\n\n### `POST /v1/ask/stream`\n\nSSE 流式问答。鉴权：Bearer。\n\n参数：\n- 同上\n- accept: text/event-stream 必填\n\n返回：`事件流：meta → stage* → token* → table → citations → done`\n\n说明：每 15s 发一次 ping 保活。\n\n### `GET /v1/sessions/{id}`\n\n取会话历史。鉴权：Bearer。",
+    "列（full 模式）：\n\n```\nevent: meta      data: {\"trace_id\":\"t_8f3a\",\"mode\":\"full\"}\nevent: stage     data: {\"name\":\"retrieve\",\"status\":\"start\"}\nevent: stage     data: {\"name\":\"retrieve\",\"status\":\"end\",\"ms\":412}\nevent: stage     data: {\"name\":\"sqlcraft\",\"status\":\"start\"}\nevent: stage     data: {\"name\":\"sqlcraft\",\"status\":\"end\",\"ms\":1830}\nevent: token     data: {\"text\":\"2026\"}\nevent: token     data: {\"text\":\" 年 5 月\"}\n...\nevent: table     data: {\"columns\":[\"渠道\",\"净GMV\"],\"rows\":[[\"字节\",182340.5]]}\nevent: citations data: {\"items\":[{\"chunk_id\":\"c_012\",\"file_path\":\"11-指标字典.md\",\"snippet\":\"roi 只用净额...\"}]}\nevent:"
+   ],
+   "citations": [
+    2,
+    4
+   ],
+   "elapsed_ms": 2664,
+   "wall_ms": 2767,
+   "cost_cny": 0.008808,
+   "tokens": 7645,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "15"
+    ],
+    [
+     "秒"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q065",
+   "type": "fact",
+   "question": "反馈接口 /v1/feedback 的 verdict 支持哪几种取值？",
+   "task": "api",
+   "answer": "`/v1/feedback` 的 verdict 支持三种取值：correct、wrong、partial [2]。\n\n依据：该端点用于提交答案反馈（对/错/部分对），参数包括 trace_id 和 verdict (correct|wrong|partial)，另有可选的 note（≤200 字）[2]。",
+   "refused": false,
+   "contexts": [
+    "`spans 数组（含耗时、token、SQL）`\n\n说明：trace 保留 7 天。\n\n### `POST /v1/feedback`\n\n提交答案反馈（对/错/部分对）。鉴权：Bearer。\n\n参数：\n- trace_id\n- verdict (correct|wrong|partial)\n- note (可选 ≤200 字)\n\n返回：`{\"ok\":true}`\n\n说明：写 feedback 表，不回流训练。\n\n### `POST /v1/admin/reload`\n\n热重载语义层配置。鉴权：Bearer + admin 角色。\n\n参数：\n- force (默认 false)\n\n返回：`{\"reloaded\":true,\"metrics\":32}`\n\n说明：校验失败则保留旧配置并返回 E1030。\n\n### `GET /v1/admin/quota`\n\n查当前租户配额用量。鉴权：Bearer + admin。\n\n返回：`qps / daily_tokens / used`\n\n说明：用量按小时聚合，非实时。\n\n### `POST /v1/admin/explain`\n\n只做 SQL 安全校验，不执行。鉴权：Bearer + admin。\n\n参数：\n- sql\n\n返回：`allowed / reasons / estimated_rows`\n\n说明：排查 E1061 用。\n\n\n## "
+   ],
+   "citations": [
+    2
+   ],
+   "elapsed_ms": 2579,
+   "wall_ms": 2672,
+   "cost_cny": 0.010082,
+   "tokens": 8944,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "partial"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q071",
+   "type": "fact",
+   "question": "E1042 响应头里的 Retry-After 单位是什么？",
+   "task": "quota",
+   "answer": "证据不足：文档中未提及相关内容。",
+   "refused": true,
+   "contexts": [],
+   "citations": [],
+   "elapsed_ms": 1216,
+   "wall_ms": 1290,
+   "cost_cny": 0.005464,
+   "tokens": 4827,
+   "error": null,
+   "kw_hit": false,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "毫秒"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q077",
+   "type": "fact",
+   "question": "并发压测的性能拐点出现在几并发？",
+   "task": "ops",
+   "answer": "性能拐点出现在 8 并发 [1]。到 8 并发时 QPS 为 0.78，再往上 QPS 基本不再增长，只是排队变长、超时变多 [1]。瓶颈不在 CPU 或数据库，而在上游 LLM 的连接数限制和本地信号量闸门 [1]。",
+   "refused": false,
+   "contexts": [
+    "# 容量与压测\n\n压测环境：单机 8 核 16G，SQLite 只读快照 3.4 GB，embedding 本地 CPU，\nLLM 走云端（网络往返约 600ms）。\n\n## 一、单请求耗时拆解（full 模式，40 题均值）\n\n| 阶段 | 耗时 | 占比 | 说明 |\n|---|---|---|---|\n| 检索 | 0.41s | 4% | BM25 + 向量，top_k=6 |\n| 重排 | 1.2s | 13% | 20 候选重排到 6，模型常驻 |\n| 生成 SQL | 3.9s | 42% | 上游 LLM，输出约 180 token |\n| 执行 | 0.08s | 1% | 聚合查询，走索引 |\n| 自检 | 2.1s | 23% | 一次 LLM 调用 |\n| 判定 + 作答 | 1.5s | 16% | 两次调用合并 |\n| 合计 | 9.2s | 100% | p50 |\n\n结论：**模型调用占 81%**，本机优化空间很小。要降延迟只能减调用次数或换更快的模型。\n\n## 二、并发表现\n\n| 并发 | QPS | p50 | p99 | 错误率 |\n|---|---|---|---|---|\n| 1 | 0.11 | 9.2s | 9.4s | 0% |\n| 4 | 0.42 | 9.6s | 11.2s | 0% |\n| 8 | 0.78 | 10.4s "
+   ],
+   "citations": [
+    1
+   ],
+   "elapsed_ms": 3088,
+   "wall_ms": 4267,
+   "cost_cny": 0.008837,
+   "tokens": 7702,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "8"
+    ],
+    [
+     "并发"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q083",
+   "type": "fact",
+   "question": "30 条数据质量规则分成哪两个级别？",
+   "task": "quality",
+   "answer": "30 条数据质量规则分为「阻塞」和「告警」两级 [3]。阻塞级规则一旦触发，当天数据不进仓库；告警级数据仍会进入仓库，但会被打标 [3]。",
+   "refused": false,
+   "contexts": [
+    "# 数据质量校验规则\n\n30 条规则，分「阻塞」和「告警」两级。阻塞级当天数据不进仓库，告警级进但打标。\n\n为什么分级：全阻塞会让上游一次小故障卡住整个链路，全告警又等于没有约束。\n分级的判据是「错了会不会让指标失去意义」——订单号为空会，分类数变化不会。\n\n\n| 编号 | 规则 | 校验方式 | 级别 | 为什么在意 |\n|---|---|---|---|---|\n| Q01 | fact_order.order_id 非空 | COUNT(*) WHERE order_id IS NULL = 0 | 阻塞 | 订单无号不可追溯 |\n| Q02 | fact_order.pay_amount >= 0 | 无负值（退款另表记录） | 阻塞 | 负金额通常是冲正未单独建行 |\n| Q03 | order 状态在枚举内 | status IN (paid,shipped,done,refunding,refunded,closed) | 阻塞 | 新增状态未同步会导致 GMV 漏算 |\n| Q04 | 同 order_id 的 pay_time 一致 | 按 order_id 分组后 COUNT(DISTINCT pay_time) = 1 | 告警 | 不一致说明拆行时时间取错 |\n| Q05 | qty > 0 且 <= 99 | 区间校验 | 告警 | 异常大额通常是测试单 "
+   ],
+   "citations": [
+    3
+   ],
+   "elapsed_ms": 2727,
+   "wall_ms": 36913,
+   "cost_cny": 0.009533,
+   "tokens": 8503,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "阻塞"
+    ],
+    [
+     "告警"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  },
+  {
+   "id": "Q089",
+   "type": "fact",
+   "question": "为什么不用 LLM 当评测裁判？",
+   "task": "eval",
+   "answer": "不用 LLM 当评测裁判，核心原因是它不稳定、不可复现，而且裁判本身有偏好 [2]。\n\n具体来说：同一份答案两次判定可能不同；裁判会偏向更长、更自信的答案 [2]。所以它只适合做探索性分析，做回归测试不行 [2]。替代方案是确定性判定，比如关键词或结果集比对；要测语义相似度就单独做一个指标并标注它是近似的 [2]。字符串关键词判定虽然粗糙，但它是确定的，同一份答案永远得同一个分 [1]。",
+   "refused": false,
+   "contexts": [
+    "失败是快照缺失或损坏，`semantic` 失败是 YAML 校验没过。两者都不会自动修复，要修数据或改配置。\n\n### 问：索引跑到一半断了怎么办？\n\n断点不会自动续。要么清空 `rag_storage/<tag>/` 重跑，要么用 `ainsert` 单文档插入，已完成的文档不会重复扣费（响应缓存在）。别直接重跑全量——会重复计费。\n\n\n## 评测\n\n### 问：90% 这个数是怎么算的？\n\n40 道题里 30 道可答、10 道必拒。90.0% 指可答题中结果集完全一致的比例（27/30）。拒答正确率单独算，是 100%（10/10）。两个数不混着报，也不加权平均。\n\n### 问：为什么用结果集比对，不用 SQL 字符串比对？\n\n同一个问题有多条正确 SQL（列顺序、别名、是否用子查询）。字符串比对会把对的判错。结果集比对允许列顺序不同，但值必须完全一致、行数必须一致。\n\n### 问：评测会不会过拟合？\n\n会，而且这是这类项目最大的诚实性问题。缓解手段有三：一是题目按能力类型分层，不是按文档段落找；二是留一部分题只在最终跑一次，不参与调参；三是把失败清单全部公开，包括修不好的。\n\n### 问：为什么不用 LLM 当裁判？\n\n不稳定且不可复现。同一个答案两次判定可能不同，而且裁判本身会偏向啰嗦的答案。字符串关键词判定虽然粗糙，但它是确定的：同一份答案永远得同一个分。\n\n### 问",
+    "做法**：拒答和误答分开统计。宁可拒答率高，也不要误答率高。\n\n\n## P18　用 LLM 当评测裁判\n\n**长什么样**：让另一个模型判断答案对不对。\n\n**为什么错**：不稳定且不可复现：同一份答案两次判定可能不同；裁判本身有偏好，会偏向更长、更自信的答案。用它做探索性分析可以，做回归测试不行。\n\n**正确做法**：确定性判定（关键词、结果集比对）。要测语义相似度，就单独做一个指标并标注它是近似的。\n\n\n## P19　全量重建索引\n\n**长什么样**：改一条语义卡，就把整个语料重新索引一遍。\n\n**为什么错**：索引成本主要在实体抽取，全量重建一次约 1 元、几分钟。一天改十次配置就是十次全量重建，钱和时间都浪费在重复劳动上。\n\n**正确做法**：语义卡改动只需热重载（不涉及索引）；文档改动用增量插入；只有换切块策略或换 embedding 模型才需要全量重建。\n\n\n## P20　把服务启动和建索引绑在一起\n\n**长什么样**：在 FastAPI 的 startup 事件里建索引。\n\n**为什么错**：索引要几分钟，健康检查超时，容器被反复重启，每次重启又从头建索引——形成死循环，而且每次循环都在花钱。\n\n**正确做法**：索引做成独立命令或 initContainer，服务启动只做校验。\n\n\n## 这些坑的共同点\n\n二十条里，有十七条的错误形态是「数字偏大或偏小，但仍在合理区"
+   ],
+   "citations": [
+    2,
+    1
+   ],
+   "elapsed_ms": 2616,
+   "wall_ms": 3757,
+   "cost_cny": 0.009538,
+   "tokens": 8237,
+   "error": null,
+   "kw_hit": true,
+   "kw_leak": false,
+   "refuse_ok": null,
+   "must": [
+    [
+     "不可复现",
+     "稳定"
+    ]
+   ],
+   "judge": null,
+   "ragas": null
+  }
+ ],
+ "metrics": {
+  "n": 20,
+  "n_error": 0,
+  "n_answerable": 16,
+  "n_answerable_pass": 14,
+  "answerable_rate": 0.875,
+  "n_refuse": 4,
+  "n_refuse_pass": 4,
+  "refuse_accuracy": 1.0,
+  "leak_rate": 0.0,
+  "latency_p50_ms": 1919,
+  "latency_p95_ms": 2917,
+  "cost_total_cny": 0.154521,
+  "cost_per_q_cny": 0.007726,
+  "tokens_total": 136255
+ }
+}
