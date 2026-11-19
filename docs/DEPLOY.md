@@ -480,16 +480,50 @@ python scripts/drill_fallback.py             # 完整四步
 脚本只在**进程内存**里改 `os.environ`，不写回 `.env`，退出即恢复；
 坏 key 用固定的 `sk-drill-invalid-key-0000`，不会碰到你真实的 key。
 
-### 15.5 生产状态（2026-11-19）
+### 15.5 为什么默认关闭（生产 = 关闭，2026-11-19 定稿）
 
-`.env` 里已显式设置 `LLM_FALLBACK_ENABLED=1`。
+`.env` 里写 **`LLM_FALLBACK_ENABLED=0`**，即**不启用** failover。
+`LLM_FALLBACK_*` 三项仍留着（备用 key 与端点已配好），只是开关是关的。
 
-**为什么必须显式写**：`llm_client.fallback_enabled()` 要求这个开关为 1 才启用 failover
-（默认关，理由见上一节引用的"为什么默认不 failover"）。
-线上如果只配了 `LLM_FALLBACK_*` 三项而漏了这个开关，**failover 不会生效，而且没有任何报错**
-——这是一个静默失效点，所以写在这里。
+三条理由，按分量排：
 
-**四步演练结果**（`scripts/drill_fallback.py`，在容器内跑，全部 PASS）：
+**1. 备用模型会引用越界，直接把输出契约打穿。**
+qwen-plus 只有 6 块证据却会写 `[16]`（`[n]` 越界），`parse_citations` 丢掉越界编号后
+`citations` 变空，而响应里的 `chunks` 是"只回被引用的块"——访客看到的是
+**答案正确、来源空白**。实测：同一批题 `[16]` 在 qwen 上出现，在 DeepSeek 上
+**20 题 0 次**。failover 一触发就切到会越界的模型，正好打穿"引用可回溯"这句承诺。
+**备胎不是保险，是把"偶尔 500"换成"看着正常但来源是空的"。**
+
+**2. 免费额度不可预期。**
+备胎的额度也会被跑光（11-18 就是 qwen3.7-flash 的 1M 被实验耗完才切的模型）。
+切过去只是把故障推迟一次，却让"当前到底谁在答"变成变量。
+
+**3. 分模型计价会污染成本口径。**
+两个模型单价差一个量级（DeepSeek 1.07/4.29、qwen 未核实故留空）。
+一旦混跑，`cost_cny` 就不再是同一个尺子量出来的数，
+"单题成本"这个指标也就不能跨时间比了。
+
+#### 那"静默关闭"怎么办：用日志，不用默认开
+
+之前的担心是"只配了 `LLM_FALLBACK_*` 三项、漏了开关，看起来启用其实没有"。
+解法不是把默认改成开，而是**让"关"在启动日志里可见**（`llm_client.provider_state_line()`）：
+
+```
+[llm] provider=deepseek-chat fallback=disabled
+[llm] provider=deepseek-chat fallback=disabled note=fallback_configured_but_disabled   # 配了但没开
+[llm] provider=deepseek-chat fallback=qwen-plus                                        # 显式打开时
+```
+
+第二种是三行里最要紧的：**配齐了却没开**——这正是以前会误判的那一档。
+启动时 `docker logs` 一眼能看到，不必再去 `env | grep`。
+
+配套测试 `tests/test_fallback_visibility.py`（5 条）：三项配齐不写开关 → 日志出现
+`fallback=disabled`（且标 `note=...`）、`sys.modules` 里没有 `llm_fallback`；
+子进程里同样成立；显式打开才出现备用模型名；lifespan 里确实在主模型加载之前打了这行。
+
+#### 故障演练（在容器内做，不影响线上）
+
+`scripts/drill_fallback.py` 四步，前两步在**显式开启**的临时进程里跑：
 
 | 步骤 | 期望 | 实测 |
 |---|---|---|
@@ -497,3 +531,53 @@ python scripts/drill_fallback.py             # 完整四步
 | 2 坏 key + 开 failover | 切备用 | `model_used=qwen-plus, fallbacks=1` PASS |
 | 3 坏 key + 关 failover | 直接抛，不重试 | `LLMAuthError, retries=0` PASS |
 | 4 恢复真 key | 回主模型 | `model_used=deepseek-chat` PASS |
+
+即：**能力是有的、验过的，但生产不开**。真要应急开启，改一行 `.env`
+（`LLM_FALLBACK_ENABLED=1`）+ `docker compose up -d --force-recreate`，
+并把上表第 2 步的重跑结果记在这里。
+
+---
+
+## 16. 长任务怎么判完成：看产物，不看 SSH 是否返回
+
+「明明跑完了，命令却一直不回来」——11-18 到 11-19 之间踩了三次（另外还有一次是**真超时**，产物确实没落盘）。
+**SSH 会话的存活和远端的活有没有干完，是两件不相关的事。**
+`timeout` 结束的只是本地这条 ssh，容器里的进程往往早就退出了。
+
+判断完成只看产物，三条命令按顺序：
+
+```bash
+# 1) 有没有落盘（评测产物）
+docker exec documind-documind-1 ls -l /app/data/ | grep <tag>
+
+# 2) 建索引进度（processed / 总数）
+docker exec documind-documind-1 python -c \
+  "import json;d=json.load(open('/app/rag_storage/<tag>/kv_store_doc_status.json'));\
+print(sum(1 for v in d.values() if v.get('status')=='processed'), '/', len(d))"
+
+# 3) 有没有残留进程、CPU 是否归零（在算 vs 已结束）
+docker exec documind-documind-1 sh -c "ps aux | grep -E 'run_eval|run_index' | grep -v grep"
+docker stats --no-stream --format "{{.Name}} CPU={{.CPUPerc}}"
+```
+
+三条都指向"完成"，才算完成；只要有一条不对，就当成还在跑或真失败。
+
+### 实测的两次（都是本项目的）
+
+| # | 任务 | SSH 表现 | 实际 | 我当时的误判 |
+|---|---|---|---|---|
+| 1 | 124 题全量评测（`mix_rr`） | 第一次 40 分钟被 `timeout` 砍断；第二次挂到 **1h41m** 才断 | 第一次**产物没落盘（真失败）**；第二次 **43 分钟就跑完**了 | 把"连接断"当"失败"，白等一小时 |
+| 2 | `nocat2` 索引重建 / 在其上跑 30 题 | 分别挂到 **60 分钟**、**1h30m** | 约 30 分钟建完（21/21 `processed`）、评测 5 分钟出数 | 看到 1h30m 以为卡死，差点重跑 |
+
+两次的共同点：**产物早在超时之前就写好了**，`timeout` 只是把挂着的连接收回。
+
+### 为什么连接会挂着
+
+远端执行的 `python xxx.py | grep ...` 在脚本退出后，管道里的 ssh 有时不会立刻收到
+EOF（容器里的守护进程仍持有 fd）。所以**长任务不要写成"等它返回"**：
+
+- 需要结果 → 用后台任务 + 事后按上面三条查产物；
+- 需要留输出 → 重定向到文件（`> /tmp/out.txt 2>&1`），再 `cat` 那个文件；
+- 窗口要给够：`mix_rr` 124 题按 43 分钟实测、留 2 小时窗口最省心。
+
+> 结论一句话：**`timeout` 不等于失败，`没产物` 才等于失败。**

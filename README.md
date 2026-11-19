@@ -1800,14 +1800,21 @@ DEDUP=1 DEDUP_THRESHOLD=0.85   # 开；默认不设即关
 > 兜底逻辑保留——换模型不该靠运气，有它才能在别的模型上不返工。
 > 新增测试 6 条（越界回填 / 正常不受影响 / 无引用不误填 / 半合法不回填 / 零块安全 / 多越界合并）。
 
-### 23.2 主备双模型
+### 23.2 主备双模型：能力具备，**生产默认关闭**
 
 详见 [`docs/DEPLOY.md`](docs/DEPLOY.md) 第 15 节。要点：
 
-- 主 `deepseek-chat`，备 `qwen-plus`；401/403/408/429/5xx/超时都会切，切完不回试主模型。
-- 响应新增 `model_used`；成本按 `model_used` **分模型计价**（两个模型单价差一个量级，
-  混算会把切换那次的成本算错几倍）。
-- 验收：注入坏 key → `200 + model_used=qwen-plus`；恢复 → `deepseek-chat`。
+- 主 `deepseek-chat`；`qwen-plus` 作为备胎**已配好但开关是关的**（`LLM_FALLBACK_ENABLED=0`）。
+- **为什么不开**：备胎 qwen 会引用越界（只有 6 块却写 `[16]`），切过去会把 `chunks`
+  打空——正好打穿"引用可回溯"。另外额度不可预期、分模型计价会污染成本口径。
+  详见 §15.5。
+- **"关"是可见的**：启动日志打一行
+  `[llm] provider=deepseek-chat fallback=disabled`；三项配了却没开还会标
+  `note=fallback_configured_but_disabled`。测试见 `tests/test_fallback_visibility.py`。
+- 能力本身验过：容器内 `scripts/drill_fallback.py` 四步全 PASS
+  （坏 key + 开开关 → `model_used=qwen-plus`；关开关 → 直接报 401 不重试）。
+- 响应里的 `model_used` 与按模型分价的 `Usage.by_model` 保留：真开了才用得上，
+  且能防止"两个模型的 token 混在一个价里算"这种错。
 
 ---
 

@@ -49,7 +49,7 @@ from app.upload import UploadTooLarge, read_upload  # noqa: E402
 from app.tenancy import TenantPool  # noqa: E402
 from index_stats import chunks_by_file, documents_of  # noqa: E402
 from llm_client import (LLMAuthError, LLMError, LLMUnavailable, Usage,  # noqa: E402
-                       llm_stream, track_usage)
+                       llm_stream, provider_state_line, track_usage)
 from query import (REFUSAL_TEXT, DocuMind, _parse_citations,  # noqa: E402
                    _repair_citations, build_answer_prompt, is_refusal)
 
@@ -142,6 +142,10 @@ async def lifespan(app: FastAPI):
     _lim = STATE["limiter"].snapshot()
     print(f"[limit] 每 IP {_lim['per_min'] or '不限'} 次/分、"
           f"{_lim['per_day'] or '不限'} 次/日；全站 {_lim['daily_total'] or '不限'} 次/日")
+
+    # 主用模型 + 备胎状态。放在加载模型之前打，日志顺序才和启动顺序一致；
+    # 也保证"failover 关着"这件事在任何请求进来之前就已经可见（不是静默的）。
+    print(provider_state_line())
 
     pool = TenantPool(
         embed="local",

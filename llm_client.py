@@ -189,7 +189,36 @@ def fallback_client() -> AsyncOpenAI:
 def _model_of(which: str) -> str:
     if which == "fallback":
         return os.environ.get("LLM_FALLBACK_MODEL", "")
-    return os.environ.get("LLM_MODEL", "deepseek-chat")
+    # `or` 而不是 get 的默认值：LLM_MODEL="" 时 get 会返回空串，
+    # 于是请求发出去没有 model 名。空值当没配处理。
+    return os.environ.get("LLM_MODEL") or "deepseek-chat"
+
+
+def provider_state_line() -> str:
+    """启动时打的一行："主用谁、备胎开没开"。
+
+    为什么要专门打这一行：failover 默认关闭，而"关着"是一种沉默状态。
+    只配了 `LLM_FALLBACK_*` 三项却漏掉 `LLM_FALLBACK_ENABLED` 时，
+    配置看起来是齐的、实际没启用，等到主模型挂掉才发现——那是静默失效。
+    解法不是把默认改成开（那会劫持引用来源，见 DEPLOY.md §15.5），
+    而是让"关"在启动日志里可见。
+
+    格式固定为 `key=value`，便于 grep 和监控：
+        [llm] provider=deepseek-chat fallback=disabled
+        [llm] provider=deepseek-chat fallback=disabled note=fallback_configured_but_disabled
+        [llm] provider=deepseek-chat fallback=qwen-plus
+    """
+    primary = _model_of("primary")
+    if fallback_enabled():
+        return f"[llm] provider={primary} fallback={_model_of('fallback')}"
+
+    # 三项配了却没开开关：这是最容易误判成"已启用"的情形，要单独标出来。
+    configured = any(
+        os.environ.get(k)
+        for k in ("LLM_FALLBACK_MODEL", "LLM_FALLBACK_API_KEY", "LLM_FALLBACK_BASE_URL")
+    )
+    note = " note=fallback_configured_but_disabled" if configured else ""
+    return f"[llm] provider={primary} fallback=disabled{note}"
 
 
 class Usage:
