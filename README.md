@@ -1,5 +1,7 @@
 # DocuMind
 
+[![ci](https://github.com/heji110705/DocuMind/actions/workflows/ci.yml/badge.svg)](https://github.com/heji110705/DocuMind/actions/workflows/ci.yml)
+
 **在线 Demo：<http://8.163.90.97/>**（阿里云 ECS 2C2G + Docker Compose，点开即用，无需注册）
 · 同机还有一个项目：**InsightPilot <http://8.163.90.97:8001/>**（问数台，可自由提问，同样跑在 `deepseek-chat` 上）
 · 部署过程与踩坑记录见 [`docs/DEPLOY.md`](docs/DEPLOY.md)
