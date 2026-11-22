@@ -261,12 +261,19 @@ def group_report(items: list[Item]) -> dict:
         return (round(sum(vals) / len(vals), 4) if vals else None), len(vals)
 
     def _faith_all(seq):
-        """全量口径：没答出来的记 0（见 docstring 第 A 条）。"""
+        """全量口径：没答出来的记 0（见 docstring 第 A 条）。
+
+        0 可能来自两处：`score_items` 已经按口径给没上下文的题写了 0.0，
+        或者这里补一个 0.0。计数时**两边都算**，否则会打印出
+        「94 题、其中 0 道记 0」这种自相矛盾的话。
+        """
         vals, zeros = [], 0
         for i in seq:
             v = (i.ragas or {}).get("faithfulness")
             if isinstance(v, (int, float)) and v == v:
                 vals.append(v)
+                if v == 0 and (i.refused or not i.contexts):
+                    zeros += 1
             elif i.refused or not i.contexts:
                 vals.append(0.0)
                 zeros += 1
