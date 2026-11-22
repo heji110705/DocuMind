@@ -136,6 +136,15 @@ class Run:
         ragas = _mean_ragas([i.ragas for i in self.items if i.ragas])
         if ragas:
             m["ragas"] = ragas
+            # 可答题口径：拒答题不进这三个指标的均值。
+            # 原因是它们混进去会把两个指标朝相反方向拧：拒答题的 faithfulness
+            # 是按「没编造就记 1.0」补的（抬高），context_precision 又因为没有
+            # 待评上下文常记 0（压低）。同一个 0.85 里含 4 个白送的 1.0，
+            # 说「faithfulness 0.85」会让听的人以为是答案忠实度，其实不是。
+            ragas_a = _mean_ragas([i.ragas for i in self.items
+                                   if i.ragas and i.type != TYPE_REFUSE])
+            if ragas_a:
+                m["ragas_answerable"] = ragas_a
         return m
 
     def to_dict(self) -> dict:

@@ -155,6 +155,7 @@ def cmd_run(args) -> None:
         suite=s.name,
         base_url=args.base_url,
         mode=args.mode,
+        rerank=getattr(args, "rerank", False),
         gold=args.gold,
         limit=args.limit,
         sleep=args.sleep,
@@ -232,15 +233,21 @@ def cmd_score(args) -> None:
 
     # 汇总里除了均值还有"这批判分是怎么来的"：裁判模型、样本量、口径说明。
     # 它们不进 metrics（metrics 只算能从 items 算出来的东西），放在 config 里。
-    run.config["ragas"] = agg
+    # 三口径拆开也放这里：metrics 里那个 ragas 均值是"所有进分母的题"混合口径，
+    # 报数时必须带上 A/B/C 三段，否则读者不知道分母里有没有那批没答出来的题。
+    groups = ragas_score.group_report(run.items)
+    run.config["ragas"] = dict(agg, groups=groups)
     out = _out_path(args.out, run) if args.out else path
     schema.save(run, out)
 
     print("\n=== RAGAS ===")
     for k, v in agg.items():
         print(f"  {k}: {v}")
+    print()
+    print(ragas_score.format_groups(groups))
     print(f"\n落盘 → {out}")
-    print(f"逐题分已写进 items[*].ragas，metrics() 的 ragas 段会自动跟着算")
+    print("逐题分已写进 items[*].ragas，metrics() 的 ragas 段会自动跟着算；"
+          "三口径另存在 config.ragas.groups")
 
 
 def cmd_gate(args) -> None:
@@ -336,6 +343,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="documind=关键词判据；insightpilot=结果集等价 + 列覆盖")
     p.add_argument("--base-url", default=None, help="默认取套件内置地址")
     p.add_argument("--mode", default="mix", help="仅 documind 有意义（mix/naive/local/global/hybrid）")
+    p.add_argument("--rerank", action="store_true",
+                   help="仅 documind：传 enable_rerank=true。服务端默认 False，"
+                        "而 run_eval.py 进程内默认 True——要复现简历上的 mix_rr 必须加这个")
     p.add_argument("--gold", default=None)
     p.add_argument("--limit", type=int, default=0, help="0 = 全量")
     p.add_argument("--only", default="", help="只跑某一题型（documind: fact/refuse，insightpilot: T1..T6）")

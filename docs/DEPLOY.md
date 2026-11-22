@@ -261,6 +261,32 @@ docker compose up -d --build
 
 纯内存计数，重启清零。演示场景下这比引入 Redis 划算。
 
+### 10.1 访客 IP 只认 socket peer（2026-11-22 修）
+
+限流按 IP 记账，IP 的唯一来源是 `app/main.py:_client_ip()`。旧实现**优先取
+`X-Forwarded-For` 的第一段**，而线上是 uvicorn 直连 80 端口、前面没有反代——
+这个头完全由客户端书写。加一行 `X-Forwarded-For: 随机IP` 就在限流器眼里换了一个人，
+`OPEN_IP_PER_DAY` 直接失效。部署修复前实测：轮换 7 个头连打 7 次，**全部 200**
+（限额是 6 次/分，正常第 7 次必 429）。
+
+现在由 `TRUST_PROXY` 控制，**默认 `0`（不信）**：
+
+| 取值 | 行为 | 什么时候用 |
+|---|---|---|
+| `0`（默认，`/.env` 不设） | 只认 socket peer，`X-Forwarded-For` / `X-Real-IP` 全部忽略 | 现在：直连 80 端口 |
+| `1` | 取 `X-Forwarded-For` **最后一段**（反代亲自看到的那一跳） | 将来挂了 nginx / Cloudflare |
+
+**将来挂反代才开，开了必须确保反代覆盖掉客户端传来的 XFF**，不能追加：
+
+```nginx
+proxy_set_header X-Forwarded-For $remote_addr;   # 不要用 $proxy_add_x_forwarded_for
+```
+
+取值解析不出来（空、畸形、`1.2.3.4:80` 这种带端口的伪 IP）时回退 socket peer，
+不抛异常——一个坏 header 不该把接口打成 500。
+
+修复后同一条命令：`200 × 6 + 429 × 1`，429 的文案是"每分钟最多 6 次"。
+
 ---
 
 ## 11. 同机部署 InsightPilot（2026-11-16）

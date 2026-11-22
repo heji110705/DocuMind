@@ -54,14 +54,17 @@ class NoSamples(RuntimeError):
 # ------------------------------------------------------------------ 选样本
 
 def usable_items(items: list[Item], limit: int = 0) -> list[Item]:
-    """能进 RAGAS 的题：没报错，且有上下文——或它是必拒题。
+    """能进 RAGAS 的题：只要请求没报错就进，不再按「有没有上下文」筛。
 
-    必拒题常常没有 citations（模型没引用），响应里 chunks 就是空的，但它必须
-    留在分母里，否则"拒答是否正确"又一次被悄悄排除。它的 faithfulness 不依赖
-    ragas 打分，由 `_apply_refuse_rule` 按口径覆盖。
+    为什么改：可答题（fact）答成「证据不足」时 contexts 是空的。那种情况不是
+    "没有可评的东西"，而是**它答错了**——而且正是最该进 faithfulness 的一类
+    （没有依据就下结论）。按 contexts 筛会把这种题整道踢出分母，等于把最该
+    扣的分悄悄抹掉：实测 20 题里 Q048、Q071 就是这样被剔除的，于是
+    n_scored 变小、均值看起来"更干净"。
+
+    必拒题也留在分母里，它的 faithfulness 不靠 ragas 打分，按下述口径覆盖。
     """
-    us = [i for i in items
-          if not i.error and (i.contexts or i.type == TYPE_REFUSE)]
+    us = [i for i in items if not i.error]
     return us[:limit] if limit else us
 
 
@@ -79,34 +82,60 @@ def score_items(
     """就地给 items 写 `ragas`，返回汇总。样本为空时抛 `NoSamples`。"""
     us = usable_items(items, limit)
     if not us:
-        raise NoSamples("没有可用于 RAGAS 的样本（全部报错 / 无上下文，且不是必拒题）")
+        raise NoSamples("没有可用于 RAGAS 的样本（全部请求失败）")
 
+    # 只把「有上下文、且不是必拒题」的送进 ragas 打语义分：
+    # 空上下文送进去只会得 NaN，拒答题的分数由口径直接给定。
     rows = [{"id": i.id, "question": i.question, "answer": i.answer,
-             "contexts": list(i.contexts)} for i in us]
-    scores = _evaluate(rows, model=model, base=base, key=key, progress=progress)
-    _guard_judge_failure(scores, len(us))
+             "contexts": list(i.contexts), "refused": bool(i.refused)}
+            for i in us if i.contexts and i.type != TYPE_REFUSE]
+    scores = _evaluate(rows, model=model, base=base, key=key, progress=progress) if rows else {}
+    if rows:
+        _guard_judge_failure(scores, len(rows))
 
-    n_refused = 0
+    n_refused = n_no_ctx = 0
     for it in us:
-        got = scores.get(it.id, {})
-        faith = got.get("faithfulness")
         if it.type == TYPE_REFUSE:
             n_refused += 1
             # 口径 2：拒答且无编造记 1.0；拒答却说了不该说的记 0.0。
-            faith = 0.0 if it.kw_leak else 1.0
+            # 其余三项置 None：拿一个"本该不回答"的样本去考 relevancy /
+            # context_precision，等于问"你为什么没答"，必然得低分——那不是
+            # 低分，是问错了。实测 4 道拒答题 context_precision 全 0，
+            # 把可答题的 0.9103 压成 0.6961。
+            it.ragas = {
+                "faithfulness": _num(0.0 if it.kw_leak else 1.0),
+                "answer_relevancy_llm": None,
+                "context_precision": None,
+                "context_recall_keyword_proxy": None,
+            }
+            continue
+        if not it.contexts:
+            # 可答题却答成「证据不足」：contexts 空 = 没有依据就下结论。
+            # 这类题必须记 0 分留在分母里，而不是踢出去。
+            n_no_ctx += 1
+            it.ragas = {
+                "faithfulness": 0.0,
+                "answer_relevancy_llm": None,
+                "context_precision": None,
+                "context_recall_keyword_proxy": _num(_keyword_recall(it)),
+            }
+            continue
+        got = scores.get(it.id, {})
         it.ragas = {
-            "faithfulness": _num(faith),
+            "faithfulness": _num(got.get("faithfulness")),
             "answer_relevancy_llm": _num(got.get("answer_relevancy_llm")),
             "context_precision": _num(got.get("context_precision")),
             "context_recall_keyword_proxy": _num(_keyword_recall(it)),
         }
 
     n_nan = {m: sum(1 for it in us
-                    if it.type != TYPE_REFUSE and it.ragas and it.ragas.get(m) is None)
+                    if it.type != TYPE_REFUSE and it.contexts
+                    and it.ragas and it.ragas.get(m) is None)
              for m in METRICS}
     return {
         "n_scored": len(us),
         "n_refused_scored": n_refused,
+        "n_no_context": n_no_ctx,
         # 打不上的分单独记一笔：均值的样本量比 n_scored 小的时候要看得见
         "n_nan": {m: c for m, c in n_nan.items() if c},
         "model": model,
@@ -119,6 +148,15 @@ def score_run(run: Any, **kwargs) -> dict:
     """对整份 run 打分，返回汇总（含逐项均值）。"""
     meta = score_items(run.items, **kwargs)
     agg = _mean([i.ragas for i in run.items if i.ragas])
+    # 可答题口径：拒答题不参与。拒答题的 faithfulness 是"没编造就记 1.0"
+    # 补出来的，context_precision 常为 0（它本就没有待评的上下文），
+    # 两者混进同一均值会让指标朝相反方向失真。
+    ans = _mean([i.ragas for i in run.items
+                 if i.ragas and i.type != TYPE_REFUSE])
+    agg.update({f"{k}_answerable": v for k, v in ans.items()})
+    agg["n_answerable_scored"] = sum(
+        1 for i in run.items
+        if i.ragas and i.type != TYPE_REFUSE and i.ragas.get("faithfulness") is not None)
     agg.update({k: v for k, v in meta.items()
                 if k in ("n_scored", "n_refused_scored", "n_nan", "model")
                 and (k != "n_nan" or v)})
@@ -159,27 +197,151 @@ def _guard_judge_failure(scores: dict[str, dict], n: int) -> None:
 
 
 def _key_from_project_env():
-    """没有显式传 key 时，从两个项目的 .env 里借一把。
+    """没有显式传 key 时，从项目自己的 .env 里借一把。
 
     为什么要有这条：这把 key 本来就是给 DocuMind / InsightPilot 调模型用的，
     裁判模型也是同一个 DeepSeek 账号。跑评测时还要人手动 export 一遍或者
     每次敲 --ragas-key，等于把「忘记」变成一个必现的失败点。
+
+    找的顺序要覆盖两种运行位置（踩过：在仓库里跑时，按 cwd 相对找不到
+    `projects/xxx/.env`，于是明明有 key 却报「没有 key」）：
+      * 仓库里：<repo>/.env
+      * 工作区：<workspace>/projects/{documind,insightpilot}/.env
     """
     from pathlib import Path
 
-    for rel in ("projects/documind/.env", "projects/insightpilot/.env"):
-        p = Path(rel)
-        if not p.exists():
-            continue
-        for line in p.read_text(encoding="utf-8", errors="ignore").splitlines():
-            if "=" not in line or line.lstrip().startswith("#"):
+    here = Path(__file__).resolve().parent.parent       # 仓库根或工作区根
+    roots = [Path.cwd(), here]
+    names = (".env", "projects/documind/.env", "projects/insightpilot/.env")
+    for root in roots:
+        for rel in names:
+            p = root / rel
+            if not p.is_file():
                 continue
-            k, v = line.split("=", 1)
-            if k.strip() in ("LLM_API_KEY", "IP_LLM_API_KEY", "DEEPSEEK_API_KEY"):
-                v = v.strip().strip('"').strip("'")
-                if v:
-                    return v
+            for line in p.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if "=" not in line or line.lstrip().startswith("#"):
+                    continue
+                k, v = line.split("=", 1)
+                if k.strip() in ("LLM_API_KEY", "IP_LLM_API_KEY", "DEEPSEEK_API_KEY"):
+                    v = v.strip().strip('"').strip("'")
+                    if v:
+                        return v
     return None
+
+
+def group_report(items: list[Item]) -> dict:
+    """三口径拆开报：可答题全量 / 剔除误拒 / 拒答题单独。
+
+    为什么不能只报一个均值：这个 run 的 94 道可答题里有 15 道模型根本没答
+    （拒答、无上下文）。它们算不算进 faithfulness 分母，会让同一个 run 的
+    faith 在 0.70 和 0.84 之间跳——**分母不同，不是质量不同**。
+
+    三口径的定义（写死，报数必须带）：
+      A 可答题全量：94 道全进分母；没答出来的（refused 或没有上下文）记 0.0。
+        记 0 的理由是"该答没答"等价于没给出任何可被证据支持的陈述；这也是
+        同构实现的口径，不这么记两边没法比。
+      B 剔除误拒后：只算真答了的（refused=False），n=79。
+        另给一行「再剔除 faith=0 的 8 道」→ n=71，用于与同构实现逐项对照。
+      C 拒答题单独：按口径 faithfulness = 无编造 1.0 / 有编造 0.0。
+    """
+    facts = [i for i in items if i.type != TYPE_REFUSE]
+    answered = [i for i in facts if not i.refused]
+    refuses = [i for i in items if i.type == TYPE_REFUSE]
+
+    def _vals(seq, key):
+        out = []
+        for i in seq:
+            v = (i.ragas or {}).get(key)
+            if isinstance(v, (int, float)) and v == v:
+                out.append(v)
+        return out
+
+    def _mean(seq, key):
+        vals = _vals(seq, key)
+        return (round(sum(vals) / len(vals), 4) if vals else None), len(vals)
+
+    def _faith_all(seq):
+        """全量口径：没答出来的记 0（见 docstring 第 A 条）。"""
+        vals, zeros = [], 0
+        for i in seq:
+            v = (i.ragas or {}).get("faithfulness")
+            if isinstance(v, (int, float)) and v == v:
+                vals.append(v)
+            elif i.refused or not i.contexts:
+                vals.append(0.0)
+                zeros += 1
+        return (round(sum(vals) / len(vals), 4) if vals else None), len(vals), zeros
+
+    faith_a, n_a, zeros = _faith_all(facts)
+    prec_a, n_prec = _mean(facts, "context_precision")
+    rec_a, _ = _mean(facts, "context_recall_keyword_proxy")
+    rel_a, _ = _mean(facts, "answer_relevancy_llm")
+
+    faith_b, n_b = _mean(answered, "faithfulness")
+    prec_b, _ = _mean(answered, "context_precision")
+    rec_b, _ = _mean(answered, "context_recall_keyword_proxy")
+    rel_b, _ = _mean(answered, "answer_relevancy_llm")
+
+    nonzero = [i for i in answered if ((i.ragas or {}).get("faithfulness") or 0) > 0]
+    faith_b2, n_b2 = _mean(nonzero, "faithfulness")
+    prec_b2, _ = _mean(nonzero, "context_precision")
+    rec_b2, _ = _mean(nonzero, "context_recall_keyword_proxy")
+
+    faith_c, n_c = _mean(refuses, "faithfulness")
+
+    return {
+        "A_answerable_all": {
+            "n": len(facts), "n_faith": n_a, "n_zero_filled": zeros,
+            "faithfulness": faith_a, "context_precision": prec_a, "n_prec": n_prec,
+            "context_recall_keyword_proxy": rec_a, "answer_relevancy_llm": rel_a,
+        },
+        "B_answerable_answered": {
+            "n": len(answered), "n_faith": n_b,
+            "faithfulness": faith_b, "context_precision": prec_b,
+            "context_recall_keyword_proxy": rec_b, "answer_relevancy_llm": rel_b,
+        },
+        "B2_answered_excl_zero": {
+            "n": n_b2, "faithfulness": faith_b2,
+            "context_precision": prec_b2, "context_recall_keyword_proxy": rec_b2,
+        },
+        "C_refuse": {
+            "n": len(refuses), "n_faith": n_c, "faithfulness": faith_c,
+            "n_leak": sum(1 for i in refuses if i.kw_leak),
+        },
+    }
+
+
+def format_groups(groups: dict) -> str:
+    """把 `group_report` 的三口径打印成人能对表的样子。"""
+    a, b, b2, c = (groups["A_answerable_all"], groups["B_answerable_answered"],
+                   groups["B2_answered_excl_zero"], groups["C_refuse"])
+
+    def f(v):
+        return f"{v:.4f}" if isinstance(v, (int, float)) else "—"
+
+    L = []
+    L.append("=== 口径一：可答题全量（没答出来的记 0）===")
+    L.append(f"  n                {a['n']}（其中 {a['n_zero_filled']} 道拒答/无上下文记 0）")
+    L.append(f"  faithfulness     {f(a['faithfulness'])}   (n={a['n_faith']})")
+    L.append(f"  context_precision {f(a['context_precision'])}  (n={a['n_prec']}，无上下文的题不进分母)")
+    L.append(f"  recall_keyword   {f(a['context_recall_keyword_proxy'])}   (同上分母)")
+    L.append(f"  answer_relevancy_llm {f(a['answer_relevancy_llm'])}  (非 RAGAS 原版，别跨表比)")
+    L.append("")
+    L.append("=== 口径二：剔除误拒后（只算真答了的）===")
+    L.append(f"  n                {b['n']}（refused=False）")
+    L.append(f"  faithfulness     {f(b['faithfulness'])}")
+    L.append(f"  context_precision {f(b['context_precision'])}")
+    L.append(f"  recall_keyword   {f(b['context_recall_keyword_proxy'])}")
+    L.append(f"  answer_relevancy_llm {f(b['answer_relevancy_llm'])}")
+    L.append(f"  └ 再剔除 faith=0 的 {b['n'] - b2['n']} 道 → n={b2['n']}："
+             f"faith {f(b2['faithfulness'])} / prec {f(b2['context_precision'])} / "
+             f"recall {f(b2['context_recall_keyword_proxy'])}")
+    L.append("")
+    L.append("=== 口径三：拒答题单独 ===")
+    L.append(f"  n                {c['n']}（faithfulness 按口径：无编造 1.0 / 有编造 0.0）")
+    L.append(f"  faithfulness     {f(c['faithfulness'])}")
+    L.append(f"  泄漏（must_absent 命中） {c['n_leak']} 题")
+    return "\n".join(L)
 
 
 def _evaluate(rows: list[dict], *, model: str, base: str | None,
@@ -209,7 +371,10 @@ def _evaluate(rows: list[dict], *, model: str, base: str | None,
     if not api_key:
         raise RagasUnavailable(
             "没有裁判模型的 key：传 --ragas-key，或设 DEEPSEEK_API_KEY / LLM_API_KEY")
-    client = openai.AsyncOpenAI(api_key=api_key, base_url=api_base)
+    # 124 题那轮吃过教训：默认客户端只重试 1 次，一批 200+ 个调用里丢了 5 个，
+    # 表现是 NaN（"这题没打上分"），而不是报错。把超时与重试都放宽一点。
+    client = openai.AsyncOpenAI(api_key=api_key, base_url=api_base,
+                                timeout=180.0, max_retries=3)
     llm, _ = _build_judge(model, client, api_key, api_base)
     _preflight(client, model, api_key, api_base)
 
@@ -262,6 +427,8 @@ async def _llm_relevance(client, model: str, rows: list[dict]) -> list[float | N
     sem = asyncio.Semaphore(6)
 
     async def one(r: dict) -> float | None:
+        if r.get("refused"):
+            return None          # 拒答是对的，不该被"切不切题"扣分
         async with sem:
             try:
                 resp = await client.chat.completions.create(

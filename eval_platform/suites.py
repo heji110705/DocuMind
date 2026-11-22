@@ -258,7 +258,13 @@ def _find_db(suite: Suite, root: Path) -> Path:
 def build_body(suite: Suite, gold_item: dict, opts: dict) -> dict:
     """请求体。两个套件的契约不同，这里只做最小构造。"""
     if suite.kind == "keyword":
-        return {"question": gold_item["question"], "mode": opts.get("mode") or "mix"}
+        body = {"question": gold_item["question"], "mode": opts.get("mode") or "mix"}
+        # rerank 必须显式传：服务端 `params.py` 的默认是 False，
+        # 而进程内跑（run_eval.py）默认 True。不传就只能测到无重排那档，
+        # 跟简历上的 87.2%（mix_rr）不是同一个配置。
+        if opts.get("rerank"):
+            body["enable_rerank"] = True
+        return body
     return {"question": gold_item["question"], "session_id": opts.get("session_id") or ""}
 
 

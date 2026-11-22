@@ -50,6 +50,7 @@ def collect(
     suite: str = "documind",
     base_url: str | None = None,
     mode: str = "mix",
+    rerank: bool = False,
     gold: str | None = None,
     limit: int = 0,
     sleep: float | None = None,
@@ -72,7 +73,7 @@ def collect(
     t_start = time.time()
 
     for n, gq in enumerate(picked, 1):
-        body = suites.build_body(s, gq, {"mode": mode})
+        body = suites.build_body(s, gq, {"mode": mode, "rerank": rerank})
         t0 = time.time()
         data, err = _post_json(url, body, timeout=timeout, api_key=api_key)
         parsed = suites.parse(s, data) if not err else _empty_parsed(s)

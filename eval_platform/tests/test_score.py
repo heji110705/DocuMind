@@ -212,6 +212,61 @@ class TestPreflight(unittest.TestCase):
         self.assertEqual(calls, {"chat": 1, "embed": 0})
 
 
+class TestGroupReport(unittest.TestCase):
+    """三口径的分母是硬约定：同一批数据换个分母，faith 能从 0.45 跳到 0.90。"""
+
+    def _items(self):
+        answered = Item(id="Q1", type="fact", question="q", answer="a", contexts=["c"],
+                        ragas={"faithfulness": 0.9, "context_precision": 0.8,
+                               "context_recall_keyword_proxy": 1.0,
+                               "answer_relevancy_llm": 0.7})
+        refused_fact = Item(id="Q2", type="fact", question="q", answer="证据不足",
+                            contexts=[], refused=True, ragas=None)
+        zero_fact = Item(id="Q3", type="fact", question="q", answer="a", contexts=["c"],
+                         ragas={"faithfulness": 0.0, "context_precision": 0.5,
+                                "context_recall_keyword_proxy": 0.0,
+                                "answer_relevancy_llm": 0.6})
+        refuse = Item(id="Q9", type="refuse", question="q", answer="证据不足",
+                      ragas={"faithfulness": 1.0})
+        return [answered, refused_fact, zero_fact, refuse]
+
+    def test_three_sections(self):
+        g = ragas_score.group_report(self._items())
+        a, b, b2, c = (g["A_answerable_all"], g["B_answerable_answered"],
+                       g["B2_answered_excl_zero"], g["C_refuse"])
+        # A：3 道可答题，没答出来的 Q2 记 0 → (0.9 + 0 + 0.0) / 3
+        self.assertEqual(a["n"], 3)
+        self.assertEqual(a["n_zero_filled"], 1)
+        self.assertAlmostEqual(a["faithfulness"], 0.3, places=4)
+        # prec 只算有分的 2 道 → (0.8 + 0.5) / 2
+        self.assertAlmostEqual(a["context_precision"], 0.65, places=4)
+        self.assertEqual(a["n_prec"], 2)
+        # B：剔除误拒 → 2 道（Q1、Q3）
+        self.assertEqual(b["n"], 2)
+        self.assertAlmostEqual(b["faithfulness"], 0.45, places=4)
+        # B2：再剔除 faith=0 → 1 道
+        self.assertEqual(b2["n"], 1)
+        self.assertAlmostEqual(b2["faithfulness"], 0.9, places=4)
+        # C：拒答题单独
+        self.assertEqual(c["n"], 1)
+        self.assertEqual(c["faithfulness"], 1.0)
+
+    def test_refuse_not_in_answerable_sections(self):
+        g = ragas_score.group_report(self._items())
+        self.assertEqual(g["A_answerable_all"]["faithfulness"], 0.3)  # 不含拒答那 1.0
+
+    def test_format_has_three_headers(self):
+        text = ragas_score.format_groups(ragas_score.group_report(self._items()))
+        self.assertIn("口径一：可答题全量", text)
+        self.assertIn("口径二：剔除误拒后", text)
+        self.assertIn("口径三：拒答题单独", text)
+
+    def test_empty_run_is_safe(self):
+        g = ragas_score.group_report([])
+        self.assertIsNone(g["A_answerable_all"]["faithfulness"])
+        self.assertEqual(g["C_refuse"]["n"], 0)
+
+
 class TestMissingRagas(unittest.TestCase):
     def test_raises_unavailable_with_install_hint(self):
         """没装 ragas 时要给一句能照抄的安装命令，而不是一个裸 ImportError。"""
