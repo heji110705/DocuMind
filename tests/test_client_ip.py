@@ -12,19 +12,23 @@
 from __future__ import annotations
 
 import pytest
-from starlette.requests import Request
 
 
-def make_request(headers: dict[str, str] | None = None, peer: str = "9.9.9.9") -> Request:
-    raw = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
-    scope = {
-        "type": "http",
-        "method": "POST",
-        "path": "/api/ask",
-        "headers": raw,
-        "client": (peer, 54321),
-    }
-    return Request(scope)
+class _FakeRequest:
+    """只实现 ``client_ip()`` 真正用到的那两个属性。
+
+    不用真 ``starlette.requests.Request``：requirements-fast.txt 里没有 starlette
+    （那个 job 刻意只装最小依赖），模块级 import 它会让这个测试在 CI 里连收集
+    都过不去——而它存在的意义恰恰是「在 CI 里真的跑起来」。
+    """
+
+    def __init__(self, headers: dict[str, str] | None = None, peer: str = "9.9.9.9") -> None:
+        self.headers = {k.lower(): v for k, v in (headers or {}).items()}
+        self.client = type("C", (), {"host": peer, "port": 54321})()
+
+
+def make_request(headers: dict[str, str] | None = None, peer: str = "9.9.9.9") -> _FakeRequest:
+    return _FakeRequest(headers, peer)
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +37,7 @@ def _clear_env(monkeypatch):
     yield
 
 
-def _client_ip(request: Request) -> str:
+def _client_ip(request: _FakeRequest) -> str:
     # 从 app.net 导入，不是 app.main —— 后者会拖着 lightrag 整条依赖链，
     # 而 CI 的「单元测试（不依赖 lightrag）」job 不装它，导不进来等于没测。
     from app.net import client_ip as fn
@@ -106,9 +110,9 @@ class TestMalformed:
     def test_peer_unknown_still_returns_string(self, monkeypatch):
         """没有 client 的场景（ASGI 里确实存在）也要给个字符串，别返回 None。"""
         monkeypatch.setenv("TRUST_PROXY", "1")
-        scope = {"type": "http", "method": "POST", "path": "/api/ask",
-                 "headers": [], "client": None}
-        assert _client_ip(Request(scope)) == "unknown"
+        req = _FakeRequest()
+        req.client = None
+        assert _client_ip(req) == "unknown"
 
     def test_mixed_bad_then_good_takes_good(self, monkeypatch):
         monkeypatch.setenv("TRUST_PROXY", "1")

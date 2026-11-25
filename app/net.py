@@ -6,15 +6,20 @@
 CI 里那个「单元测试（不依赖 lightrag）」的 job **根本导不进这个函数**，
 测试只能靠 ``importorskip`` 跳过——而跳过等于没测。
 
-这个模块不 import 任何项目内模块，只依赖 starlette 的 Request。
+这个模块不 import 任何项目内模块，**也不在运行时 import starlette**——
+`Request` 只出现在类型标注里，靠 `from __future__ import annotations` 变成字符串。
+理由是 requirements-fast.txt 里没有 starlette（那个 job 刻意只装最小依赖），
+模块级 import 它会让「不依赖 lightrag」的 job 连导入都失败。
 """
 
 from __future__ import annotations
 
 import ipaddress
 import os
+from typing import TYPE_CHECKING
 
-from starlette.requests import Request
+if TYPE_CHECKING:  # 只为标注，运行时不需要 starlette
+    from starlette.requests import Request
 
 
 def trust_proxy() -> bool:
