@@ -34,7 +34,9 @@ def _clear_env(monkeypatch):
 
 
 def _client_ip(request: Request) -> str:
-    from app.main import _client_ip as fn
+    # 从 app.net 导入，不是 app.main —— 后者会拖着 lightrag 整条依赖链，
+    # 而 CI 的「单元测试（不依赖 lightrag）」job 不装它，导不进来等于没测。
+    from app.net import client_ip as fn
     return fn(request)
 
 
